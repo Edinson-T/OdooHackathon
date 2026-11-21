@@ -1,6 +1,7 @@
 import type { Snapshot, AssetType, Condition } from "../domain/types";
 import { localDate } from "../lib/clock";
 import { checklist } from "../domain/checklists";
+import { newScenario } from "../domain/scenario";
 export function seed(): Snapshot {
   const zones = ["North meadow", "River basin", "South ridge"].map(
     (name, i) => ({
@@ -56,6 +57,8 @@ export function seed(): Snapshot {
     complaints: [],
     readings: [],
     hazardEvents: [],
+    scenario: newScenario(),
+    healthNotices: [],
   };
   names.forEach((name, i) => {
     const type = kinds[i % 3],
@@ -73,7 +76,8 @@ export function seed(): Snapshot {
         4.33 + [0.019, 0.052, 0.094, 0.122][i % 4] + (i > 3 ? 0.002 : 0),
       condition,
       inspectionIntervalDays: 30,
-      nextInspectionDue: localDate(i === 2 ? -3 : i === 7 ? 0 : 18 + i),
+      // Every inspection is due later, so a new workspace starts with no jobs.
+      nextInspectionDue: localDate(18 + i),
       createdAt: localDate(-42) + "T10:00:00Z",
       lastInspectedAt: condition === "unknown" ? null : date,
     });

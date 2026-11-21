@@ -8,6 +8,7 @@ import {
   Empty,
   go,
   dateText,
+  reasons,
 } from "../../components/ui";
 import type { InspectionJob } from "../../domain/types";
 import type { CompletionInput } from "../../services/repository";
@@ -83,9 +84,8 @@ export function Jobs({ mine = false }: { mine?: boolean }) {
                 </a>
                 <small>
                   {s!.zones.find((z) => z.id === a.zoneId)?.name} ·{" "}
-                  {j.triggers.filter(t => t.kind === "due").map(t => t.dueDate + " · ")}{Array.from(
-                    new Set(j.triggers.map((t) => labels[t.kind])),
-                  ).join(" + ")}
+                  {j.triggers.filter(t => t.kind === "due").map(t => t.dueDate + " · ")}
+                  {reasons(s!, j.triggers).join(" + ")}
                 </small>
               </div>
               <Badge v={j.status} />
@@ -189,6 +189,7 @@ export function Inspect({ job }: { job: InspectionJob }) {
         }}
       >
         <h2>Inspection checklist</h2>
+        <p className="subtle">Requested by: {reasons(s!, job.triggers).join(" + ")}</p>
         {job.checklist.questions.map((q) => (
           <label key={q.id}>
             {q.label}

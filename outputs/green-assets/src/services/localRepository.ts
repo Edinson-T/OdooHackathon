@@ -1,5 +1,15 @@
-import { exceeds, fieldDate } from "../domain/warnings";
-import type { Snapshot, Asset, Complaint, HazardEvent, Reading } from "../domain/types";
+import { exceeds, explain, fieldDate, hazardTypes } from "../domain/warnings";
+import { jobRules } from "../domain/hazardConfig";
+import { newScenario, scenarioReadings } from "../domain/scenario";
+import type {
+  Snapshot,
+  Asset,
+  Complaint,
+  HazardEvent,
+  HazardType,
+  Reading,
+  Scenario,
+} from "../domain/types";
 import type {
   Actor,
   AssetInput,
@@ -10,6 +20,7 @@ import type {
 import { load, save, Problem } from "../lib/storage";
 import { seed } from "../data/seed";
 import { attach, summary } from "../domain/rules";
+import { checklist } from "../domain/checklists";
 import { localDate, realDate } from "../lib/clock";
 const now = () => new Date().toISOString();
 function check(ok: unknown, msg: string): asserts ok {
@@ -84,22 +95,104 @@ function validate(s: Snapshot, a: AssetInput) {
     "Coordinates must be inside the selected zone.",
   );
 }
-function impacts(s: Snapshot, e: HazardEvent) {
-  const r = summary();
-  for (const id of e.affectedAssetIds)
-    attach(
-      s,
-      byId(s.assets, id),
-      { kind: "hazard", hazardEventId: e.id, key: "hazard:" + e.id + ":" + id },
-      r,
+function admin(s: Snapshot, actor: Actor) {
+  permit(byId(s.users, actor.actorId).role === "admin");
+}
+// Gives the zone's assets of the named types an inspection trigger for an alert.
+function dispatch(s: Snapshot, event: HazardEvent, types: string[], stage: string) {
+  const result = summary();
+  for (const a of s.assets)
+    if (a.zoneId === event.zoneId && types.includes(a.type)) {
+      const key = ["hazard", event.id, stage, a.id].join(":");
+      attach(s, a, { kind: "hazard", hazardEventId: event.id, key }, result);
+      if (!event.affectedAssetIds.includes(a.id)) event.affectedAssetIds.push(a.id);
+    }
+}
+// Applies the alert rules to one reading. An alert is one event from the first
+// reading over the threshold until a reading back under it.
+// - Heat: farms are checked when the alert starts.
+// - Rain: solar panels are checked on the first reading back under the threshold.
+// - Dengue: the alert is shown and no job is created.
+function assess(s: Snapshot, r: Reading) {
+  const current = s.hazardEvents.find(
+    (e) => e.zoneId === r.zoneId && e.type === r.type && e.clearedAt === null,
+  );
+  if (!exceeds(r)) {
+    if (!current) return;
+    current.clearedAt = now();
+    if (r.type === "rainfall") dispatch(s, current, jobRules.afterRain, "after");
+    return;
+  }
+  const event: HazardEvent = current ?? {
+    id: crypto.randomUUID(),
+    type: r.type,
+    zoneId: r.zoneId,
+    level: "warning",
+    reason: "",
+    source: r.source,
+    simulated: false,
+    affectedAssetIds: [],
+    createdAt: now(),
+    clearedAt: null,
+  };
+  if (!current) s.hazardEvents.push(event);
+  event.reason = explain(r);
+  event.source = r.source;
+  event.simulated = r.source === "simulated";
+  if (r.type === "heat") dispatch(s, event, jobRules.heat, "start");
+}
+function endWarnings(s: Snapshot) {
+  for (const e of s.hazardEvents) if (e.clearedAt === null) e.clearedAt = now();
+}
+// When the simulated scenario restarts or ends, every job it created is
+// deleted, claimed and completed ones included, so each run starts clean.
+// What members reported by hand stays, and so do scheduled inspections.
+function withdrawSimulated(s: Snapshot) {
+  // An alert that no longer exists came from an earlier scenario, so its
+  // work goes too.
+  const simulatedEvent = (id: string) =>
+    s.hazardEvents.find((e) => e.id === id)?.simulated !== false;
+  for (const j of s.jobs) {
+    const kept = j.triggers.filter(
+      (t) => t.kind !== "hazard" || !simulatedEvent(t.hazardEventId),
     );
-  return r;
+    if (kept.length === j.triggers.length) continue;
+    j.triggers = kept;
+    // The scenario's extra checks leave with it, unless the job is already answered.
+    if (j.status === "completed") continue;
+    const hazards = j.triggers.flatMap((t) =>
+      t.kind === "hazard"
+        ? (s.hazardEvents.find((e) => e.id === t.hazardEventId)?.type ?? [])
+        : [],
+    );
+    j.checklist = checklist(byId(s.assets, j.assetId).type, [...new Set(hazards)]);
+  }
+  s.jobs = s.jobs.filter((j) => j.triggers.length > 0);
+  s.hazardEvents = s.hazardEvents.filter((e) => !e.simulated);
+}
+// Replaces the readings with those of the scenario's current day.
+function runScenario(s: Snapshot) {
+  s.readings = scenarioReadings(s.zones, s.scenario, now());
+  for (const r of s.readings) assess(s, r);
+}
+function simulated(s: Snapshot) {
+  state(s.scenario.mode === "simulated", "Switch to the simulated scenario first.");
 }
 export const repository = {
   registerUser: (user: Snapshot["users"][number]) => edit(s => {
     const existing = s.users.find(u => u.id === user.id);
     if (existing) Object.assign(existing, user);
     else s.users.push(user);
+    // The simulated scenario is the default for everyone. It starts here, on
+    // day 1, the first time a workspace is opened with it selected.
+    if (
+      s.scenario.mode === "simulated" &&
+      !s.readings.some((r) => r.source === "simulated")
+    ) {
+      endWarnings(s);
+      withdrawSimulated(s);
+      runScenario(s);
+    }
   }),
   getSnapshot: () => result(load),
   resetDemo: () =>
@@ -203,27 +296,115 @@ export const repository = {
         );
       return r;
     }),
-  recordReadings: (readings:Reading[]) => edit(s => {
-    for (const reading of readings) {
-      byId(s.zones,reading.zoneId);
-      check(["rainfall","flooding","disease"].includes(reading.type) && Number.isFinite(reading.value) && reading.value >= 0 &&
-        (reading.type !== "disease" || (Number.isFinite(reading.mosquitoes) && reading.mosquitoes! >= 0)), "Invalid sensor measurement.");
-      check(Number.isFinite(Date.parse(reading.observedAt)) && Date.parse(reading.observedAt) <= Date.now(), "Invalid measurement time.");
-      const day = fieldDate(reading.observedAt);
-      if(day !== fieldDate(now())) continue;
-      const previous = s.readings.find(r => r.zoneId === reading.zoneId && r.type === reading.type);
-      if(previous && Date.parse(previous.observedAt) >= Date.parse(reading.observedAt)) continue;
-      s.readings = s.readings.filter(r => r !== previous);
-      s.readings.push({...reading,observedAt:new Date(reading.observedAt).toISOString()});
-      if (!exceeds(reading)) continue;
-      const id = [reading.zoneId,reading.type,day].join(":");
-      if (s.hazardEvents.some(e=>e.id === id)) continue;
-      const event:HazardEvent = {id,type:reading.type,zoneId:reading.zoneId,createdAt:now(),simulated:false,
-        affectedAssetIds:s.assets.filter(a=>a.zoneId===reading.zoneId).map(a=>a.id)};
-      s.hazardEvents.push(event);
-      impacts(s,event);
-    }
-  }),
+  // Readings from live sources: the weather service, a sensor feed or an
+  // admin's entry. They are set aside while a simulated scenario runs.
+  recordReadings: (readings: Reading[]) =>
+    edit((s) => {
+      if (s.scenario.mode === "simulated") return;
+      for (const reading of readings) {
+        byId(s.zones, reading.zoneId);
+        const amount = (v: number | undefined) =>
+          v !== undefined && Number.isFinite(v) && v >= 0;
+        check(
+          hazardTypes.includes(reading.type) &&
+            ["live", "sensor", "manual"].includes(reading.source) &&
+            // A temperature may be below zero. Rain and a yes or no may not.
+            (reading.type === "heat"
+              ? Number.isFinite(reading.value)
+              : amount(reading.value)) &&
+            (reading.forecast === undefined || amount(reading.forecast)),
+          "Invalid sensor measurement.",
+        );
+        check(
+          Number.isFinite(Date.parse(reading.observedAt)) &&
+            Date.parse(reading.observedAt) <= Date.now(),
+          "Invalid measurement time.",
+        );
+        if (fieldDate(reading.observedAt) !== fieldDate(now())) continue;
+        const previous = s.readings.find(
+          (r) => r.zoneId === reading.zoneId && r.type === reading.type,
+        );
+        if (
+          previous &&
+          previous.source !== "simulated" &&
+          Date.parse(previous.observedAt) >= Date.parse(reading.observedAt)
+        )
+          continue;
+        const stored = {
+          ...reading,
+          observedAt: new Date(reading.observedAt).toISOString(),
+        };
+        s.readings = s.readings.filter((r) => r !== previous);
+        s.readings.push(stored);
+        assess(s, stored);
+      }
+    }),
+  // Live sources or the simulated scenario. Switching ends the warnings of the
+  // mode that is left, because their readings no longer apply.
+  setMonitoring: (actor: Actor, mode: Scenario["mode"]) =>
+    edit((s) => {
+      admin(s, actor);
+      check(
+        mode === "live" || mode === "simulated",
+        "Choose live sources or the simulated scenario.",
+      );
+      if (s.scenario.mode !== mode) {
+        endWarnings(s);
+        withdrawSimulated(s);
+        s.readings = [];
+        s.scenario.mode = mode;
+        if (mode === "simulated") runScenario(s);
+      }
+      return s.scenario;
+    }),
+  // Moves the scenario on by one day or several. Every day in between is
+  // judged in turn, so alerts and jobs come out the same as stepping by hand.
+  advanceScenario: (actor: Actor, days = 1) =>
+    edit((s) => {
+      byId(s.users, actor.actorId);
+      simulated(s);
+      check(
+        Number.isInteger(days) && days >= 1 && days <= 60,
+        "Move the scenario on by 1 to 60 days.",
+      );
+      for (let i = 0; i < days; i++) {
+        s.scenario.day += 1;
+        runScenario(s);
+      }
+      return s.scenario;
+    }),
+  // A storm, a heatwave or a dengue report on the scenario's current day.
+  triggerHazard: (actor: Actor, zoneId: string, kind: HazardType) =>
+    edit((s) => {
+      byId(s.users, actor.actorId);
+      simulated(s);
+      const day = s.scenario.day;
+      byId(s.zones, zoneId);
+      check(hazardTypes.includes(kind), "Choose rain, heat or dengue.");
+      if (
+        !s.scenario.triggered.some(
+          (x) => x.zoneId === zoneId && x.day === day && x.kind === kind,
+        )
+      )
+        s.scenario.triggered.push({ zoneId, day, kind });
+      runScenario(s);
+      return s.scenario;
+    }),
+  // Back to day 1. With a seed, the weather is a new one.
+  restartScenario: (actor: Actor, seed?: number) =>
+    edit((s) => {
+      byId(s.users, actor.actorId);
+      simulated(s);
+      check(
+        seed === undefined || (Number.isInteger(seed) && seed >= 0),
+        "A scenario seed is a whole number.",
+      );
+      endWarnings(s);
+      withdrawSimulated(s);
+      s.scenario = { ...newScenario(seed ?? s.scenario.seed), mode: "simulated" };
+      runScenario(s);
+      return s.scenario;
+    }),
   claimJob: (actor: Actor, id: string) =>
     edit((s) => {
       byId(s.users, actor.actorId);
