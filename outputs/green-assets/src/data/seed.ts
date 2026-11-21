@@ -54,6 +54,7 @@ export function seed(): Snapshot {
     assets: [],
     jobs: [],
     complaints: [],
+    readings: [],
     hazardEvents: [],
   };
   names.forEach((name, i) => {
@@ -83,7 +84,6 @@ export function seed(): Snapshot {
         id: "history-" + id,
         assetId: id,
         status: "completed",
-        priority: "low",
         assigneeId: "user-b",
         createdAt: date,
         claimedAt: date,

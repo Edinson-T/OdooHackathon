@@ -1,61 +1,22 @@
-# Green Assets — Hackathon Development Guide
+# Green Assets
 
-Green Assets is a working project name for a 24-hour website demo. Community members report problems with farms, ponds, and solar systems, then claim and complete inspection jobs. An admin maintains the asset registry.
+Run Green Assets from this directory with Node 22.12 or later. Install dependencies with `npm ci`, then run `npm run dev`. The default address is http://127.0.0.1:5173. Use `npm run build` for the production bundle and `npm run lint` for static checks.
 
-Run the local demo with Node.js 22.12+ and npm. From this folder, run `npm ci` followed by `npm run dev`. Open the local address printed by Vite. The six project documents are included here.
+## Local demo
 
-## Read first
+With authentication unconfigured, choose a local demo member or administrator. Use the administrator role to place asset pins and record sample sensor measurements. Switch account returns to the role chooser. Hosted Google authentication replaces this chooser once configured.
 
-| Document | Use it for |
-| --- | --- |
-| [PRD.md](PRD.md) | Scope, users, acceptance criteria, delivery plan |
-| [ARCHITECTURE.md](ARCHITECTURE.md) | Components, folders, data flow, integration boundaries |
-| [API.md](API.md) | Browser service interface and behavior contracts |
-| [DATABASE.md](DATABASE.md) | Canonical types, relationships, storage rules |
-| [ADR.md](ADR.md) | Decisions and reasons |
+## Google account setup
 
-## Stack
+In your Supabase project, enable the Google authentication provider. Create a Google OAuth web client with the callback URL displayed by Supabase. Enter its client ID and secret in the provider settings. In Supabase URL Configuration, allow the app's exact origin and callback path, including the development address above. Set these public values in an ignored `.env.local` file and restart Vite:
 
-React, TypeScript, Vite, Tailwind CSS, Leaflet, React Context/useReducer, and localStorage. Run the website locally with Vite for the presentation. All business logic executes in the browser. External map tiles require an internet connection; retain an asset-list fallback.
-
-## Run locally
-
-From the application repository root:
-
-```sh
-npm ci
-npm run dev
+```dotenv
+VITE_SUPABASE_URL=https://YOUR_PROJECT.supabase.co
+VITE_SUPABASE_PUBLISHABLE_KEY=YOUR_PUBLIC_PUBLISHABLE_KEY
 ```
 
-Open the URL printed by Vite. No database setup, backend process, credentials, or environment variables are required for the core demo. Map-provider configuration is the only optional external configuration; never embed secret keys in frontend code.
+Google creates a member account on first login. Assign administrators using Supabase's trusted user app metadata field `role: admin`. Switch account signs out the previous local session before opening Google's account chooser.
 
-```sh
-npm run build
-npm run preview
-npm run lint
-```
+## Running the field demo
 
-These commands assume the standard React/TypeScript Vite scaffold scripts are retained. Build and preview check the application locally; `npm run dev` runs the development demo. Use hash-based navigation, such as `#/jobs`, for the different screens.
-
-## Demo setup and story
-
-Seed 12 fictional assets, two community identities, and one admin identity. Generate inspection dates relative to the current demo date. Use a labeled demo-identity selector; it is not a login system.
-
-1. Admin adds a pond with a future inspection date.
-2. Community member A reports a blocked outlet.
-3. Community member B claims the resulting job and submits findings.
-4. Show that completing an inspection can leave an issue awaiting action.
-5. Simulate a flood in another zone and show new jobs.
-6. Run the due-inspection check and show an overdue solar asset.
-7. Refresh to demonstrate persistence; use Reset demo to rehearse again.
-
-## Before presenting
-
-- Confirm the local build and lint checks pass before the presentation.
-- Complete the acceptance scenarios in PRD.md, including duplicate triggers and claim ownership.
-- Check a narrow screen, the local demo URL, refresh behavior, and map failure fallback.
-- Keep screenshots and a locally served build available for a connectivity problem.
-
-## Boundaries
-
-Data is local to one browser and origin, and can be cleared by the user. Different devices do not share records. Identity switching and client-side permission checks demonstrate behavior, not security. Present hazards as simulations and use fictional data. A completed inspection is not proof that a reported problem was repaired.
+Admins place asset pins inside the selected zone. Members filter reports by asset category and claim one inspection at a time. Records persist in this browser. See [PRD](PRD.md) for the user workflow, [architecture](ARCHITECTURE.md) for deployment boundaries, [API](API.md) for sensor integration, [database](DATABASE.md) for stored records and [decisions](ADR.md) for scheduling and alert assumptions.

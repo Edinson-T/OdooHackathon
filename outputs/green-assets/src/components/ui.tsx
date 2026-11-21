@@ -5,7 +5,7 @@ export const labels: Record<string, string> = {
   pond: "Pond",
   solar_system: "Solar system",
   healthy: "Healthy",
-  needs_attention: "Needs attention",
+  needs_attention: "Needs inspection",
   critical: "Critical",
   unknown: "Unknown",
   available: "Available",

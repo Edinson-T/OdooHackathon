@@ -1,3 +1,4 @@
+import { PinPicker } from "./PinPicker";
 import { useState, type FormEvent } from "react";
 import { useApp } from "../../app/provider";
 import {
@@ -15,6 +16,7 @@ export function Report({ assetId }: { assetId?: string }) {
   const { s, identity, run, busy } = useApp();
   const [asset, A] = useState(assetId || s!.assets[0].id),
     [desc, D] = useState("");
+  const [category,setCategory] = useState("");
   return (
     <>
       <h1>Report a problem</h1>
@@ -35,14 +37,19 @@ export function Report({ assetId }: { assetId?: string }) {
             go("/activity");
         }}
       >
+        <label>Asset category<select value={category} onChange={e=>{
+          const kind=e.target.value;
+          setCategory(kind);
+          if(kind && s!.assets.find(a=>a.id===asset)?.type!==kind) A(s!.assets.find(a=>a.type===kind)?.id || "");
+        }}><option value="">All categories</option>{["farm","pond","solar_system"].map(k=><option key={k} value={k}>{labels[k]}</option>)}</select></label>
         <label>
           Asset
-          <select value={asset} onChange={(e) => A(e.target.value)}>
-            {s!.assets.map((a) => (
+          <select required value={asset} onChange={(e) => A(e.target.value)}>
+            {["farm","pond","solar_system"].filter(k=>!category || k===category).map(kind => <optgroup key={kind} label={labels[kind]}>{s!.assets.filter(a => a.type === kind).map((a) => (
               <option key={a.id} value={a.id}>
                 {a.name}
               </option>
-            ))}
+            ))}</optgroup>)}
           </select>
         </label>
         <label>
@@ -73,7 +80,7 @@ export function Admin({ editId }: { editId?: string }) {
     ),
     [lng, X] = useState(String(a?.longitude ?? 4.4));
   if (s!.users.find((u) => u.id === identity)?.role !== "admin")
-    return <Empty text="Choose the admin demo identity to manage assets." />;
+    return <Empty text="An administrator account is required to manage assets." />;
   const bounds = s!.zones.find((z) => z.id === zone)!.bounds;
   async function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -161,32 +168,7 @@ export function Admin({ editId }: { editId?: string }) {
             </select>
           </label>
         </div>
-        <div className="twocol">
-          <label>
-            Latitude
-            <input
-              type="number"
-              required
-              step="any"
-              min={bounds.south}
-              max={bounds.north}
-              value={lat}
-              onChange={(e) => Y(e.target.value)}
-            />
-          </label>
-          <label>
-            Longitude
-            <input
-              type="number"
-              required
-              step="any"
-              min={bounds.west}
-              max={bounds.east}
-              value={lng}
-              onChange={(e) => X(e.target.value)}
-            />
-          </label>
-        </div>
+        <PinPicker key={zone} bounds={bounds} latitude={Number(lat)} longitude={Number(lng)} onPick={(lat,lng) => { Y(String(lat)); X(String(lng)); }} />
         <div className="twocol">
           <label>
             Inspection interval (days)

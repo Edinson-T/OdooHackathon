@@ -1,3 +1,4 @@
+import { Auth } from "./app/Auth";
 import { createRoot } from "react-dom/client";
 import { useEffect, useState } from "react";
 import {
@@ -7,14 +8,14 @@ import {
   ClipboardList,
   History,
   Settings2,
-  RotateCcw,
+
   CalendarDays,
   Menu,
   X,
   CheckCircle2,
   AlertCircle,
   Leaf,
-  FlaskConical,
+
 } from "lucide-react";
 import { Provider, useApp } from "./app/provider";
 import { Dashboard } from "./features/dashboard/Dashboard";
@@ -23,8 +24,8 @@ import { Admin, Details, Report } from "./features/assets/Forms";
 import { Jobs, Inspect } from "./features/jobs/Jobs";
 import { Empty } from "./components/ui";
 import "./style.css";
-function Shell() {
-  const { s, identity, switchUser, reset, clear, message, error, busy } =
+function Shell({logout,change}:{logout:()=>void;change:()=>void}) {
+  const { s, identity,  clear, message, error, busy } =
     useApp();
   const [path, P] = useState(location.hash.slice(1) || "/"),
     [mobile, M] = useState(false);
@@ -140,10 +141,7 @@ function Shell() {
             <span className="signal" />
             Local workspace
           </div>
-          <button disabled={busy} onClick={reset}>
-            <RotateCcw size={16} />
-            Reset demo
-          </button>
+
         </div>
       </aside>
       <div className="workspace">
@@ -160,29 +158,7 @@ function Shell() {
             <span>Community workspace</span>
           </div>
           <div className="identity">
-            <span className="demo">
-              <FlaskConical size={13} />
-              Demo identity
-            </span>
-            <span className="avatar">
-              {user?.name
-                .split(" ")
-                .map((t) => t[0])
-                .join("") || "GA"}
-            </span>
-            <select
-              aria-label="Demo identity"
-              disabled={busy}
-              value={identity}
-              onChange={(e) => switchUser(e.target.value)}
-            >
-              {s?.users.map((u) => (
-                <option key={u.id} value={u.id}>
-                  {u.name}
-                  {u.role === "admin" ? " · Admin" : ""}
-                </option>
-              ))}
-            </select>
+            <span>{user?.name}</span><button disabled={busy} onClick={change}>Switch account</button><button onClick={logout}>Log out</button>
           </div>
         </header>
         <main>
@@ -214,7 +190,5 @@ function Shell() {
   );
 }
 createRoot(document.getElementById("root")!).render(
-  <Provider>
-    <Shell />
-  </Provider>,
+  <Auth>{(user,logout,change) => <Provider key={user.id} user={user}><Shell logout={logout} change={change}/></Provider>}</Auth>,
 );

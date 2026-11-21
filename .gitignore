@@ -18,3 +18,12 @@ Thumbs.db
 
 # Logs
 *.log
+
+node_modules/
+dist/
+work/
+outputs/development-docs/
+*.zip
+*.tsbuildinfo
+outputs/green-assets/overview.png
+.env.local

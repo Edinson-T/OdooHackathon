@@ -1,3 +1,4 @@
+import { exceeds,fieldDate,station } from "../../domain/warnings";
 import { useEffect, useRef } from "react";
 import L from "leaflet";
 import { renderToStaticMarkup } from "react-dom/server";
@@ -45,6 +46,13 @@ export function AssetMap({ assets }: { assets: Asset[] }) {
       )
       .addTo(map);
     s.zones.forEach((z) => {
+      for(const type of ["rainfall","flooding","disease"] as const) {
+        const r=s.readings.find(r=>r.zoneId===z.id && r.type===type && fieldDate(r.observedAt)===fieldDate(new Date().toISOString()));
+        const warning=r && exceeds(r);
+        const name={rainfall:"Heavy rain",flooding:"Flood",disease:"Disease"}[type];
+        const label=name+(warning ? " warning" : " station")+(r ? " · "+r.value+" "+({rainfall:"mm",flooding:"m",disease:"counts/mL"}[type])+(type==="disease" ? ", "+r.mosquitoes+" mosquitoes/trap-day":"") : " · awaiting data");
+        L.circleMarker(station(z,type),{radius:warning?11:6,color:warning?"#b43225":"#416478",fillOpacity:0.85}).bindTooltip(label,{permanent:!!warning}).addTo(map);
+      }
       const b = z.bounds;
       L.rectangle(
         [

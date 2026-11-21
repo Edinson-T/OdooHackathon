@@ -10,7 +10,6 @@ export function attach(
   s: Snapshot,
   a: Asset,
   t: Trigger,
-  p: InspectionJob["priority"],
   result: TriggerResult,
 ) {
   const duplicate = s.jobs.find((j) =>
@@ -25,7 +24,6 @@ export function attach(
   );
   if (available) {
     available.triggers.push(t);
-    if (p === "high" || available.priority === "low") available.priority = p;
     result.updatedJobIds.push(available.id);
     return available;
   }
@@ -33,7 +31,6 @@ export function attach(
     id: crypto.randomUUID(),
     assetId: a.id,
     triggers: [t],
-    priority: p,
     status: "available",
     assigneeId: null,
     claimedAt: null,
