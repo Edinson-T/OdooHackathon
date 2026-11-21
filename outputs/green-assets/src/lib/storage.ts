@@ -41,7 +41,7 @@ const format = z.object({
       type: z.enum(["farm", "pond", "solar_system"]),
       latitude: lat,
       longitude: lng,
-      zoneId: id,
+      zoneId: id.optional(),
       condition: z.union([condition, z.literal("unknown")]),
       inspectionIntervalDays: z.number().int().min(1).max(365),
       nextInspectionDue: date,

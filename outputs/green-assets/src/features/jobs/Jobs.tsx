@@ -82,7 +82,6 @@ export function Jobs({ mine = false }: { mine?: boolean }) {
                   {a.name}
                 </a>
                 <small>
-                  {s!.zones.find((z) => z.id === a.zoneId)?.name} ·{" "}
                   {j.triggers.filter(t => t.kind === "due").map(t => t.dueDate + " · ")}{Array.from(
                     new Set(j.triggers.map((t) => labels[t.kind])),
                   ).join(" + ")}

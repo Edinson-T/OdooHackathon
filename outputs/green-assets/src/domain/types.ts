@@ -22,7 +22,7 @@ export interface Asset {
   type: AssetType;
   latitude: number;
   longitude: number;
-  zoneId: Id;
+  zoneId?: Id;
   condition: Condition;
   inspectionIntervalDays: number;
   nextInspectionDue: LocalDate;

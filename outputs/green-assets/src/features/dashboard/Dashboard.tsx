@@ -1,4 +1,4 @@
-import { threshold,todayRain } from "../../domain/warnings";
+import { threshold,todayRain,station } from "../../domain/warnings";
 import {useEffect,useState} from "react";
 
 import {
@@ -100,10 +100,10 @@ export function Dashboard() {
         <button disabled={busy} onClick={()=>void refresh()}>Refresh readings</button><p role="status">{status}</p>
         {s!.users.find(u=>u.id===identity)?.role==="admin" && <form className="form" onSubmit={e=>{
           e.preventDefault(); const data=new FormData(e.currentTarget);
-          void run(()=>repo.recordReadings([{zoneId:String(data.get("zone")),type,value:Number(data.get("value")),mosquitoes:type==="disease"?Number(data.get("mosquitoes")):undefined,observedAt:new Date().toISOString()}]),()=>"Sensor reading recorded.");
+          void run(()=>repo.recordReadings([{zoneId:String(data.get("station")),type,value:Number(data.get("value")),mosquitoes:type==="disease"?Number(data.get("mosquitoes")):undefined,observedAt:new Date().toISOString()}]),()=>"Sensor reading recorded.");
         }}>
           <h3>Record a sensor measurement</h3>
-          <label>Station zone<select name="zone">{zones.map(z=><option key={z.id} value={z.id}>{z.name}</option>)}</select></label>
+          <label>Sensor location<select name="station">{zones.map(z=><option key={z.id} value={z.id}>{station(z,type).map(n=>n.toFixed(4)).join(", ")}</option>)}</select></label>
           <label>Sensor<select value={type} onChange={e=>setType(e.target.value as typeof type)}><option value="flooding">Water level</option><option value="disease">Microbe and mosquito monitor</option></select></label>
           <label>{type==="flooding"?"Water level (m)":"Microbial density (counts/mL)"}<input key={type} name="value" type="number" min="0" step="any" required/></label>
           {type==="disease" && <label>Mosquitoes per trap-day<input name="mosquitoes" type="number" min="0" step="any" required/></label>}

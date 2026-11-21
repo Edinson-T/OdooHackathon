@@ -121,7 +121,6 @@ export function Registry() {
             <thead>
               <tr>
                 <th>Asset name</th>
-                <th>Zone</th>
                 <th>Condition</th>
                 <th>Next inspection</th>
               </tr>
@@ -143,7 +142,6 @@ export function Registry() {
                       </span>
                     </button>
                   </td>
-                  <td>{s!.zones.find((z) => z.id === a.zoneId)?.name}</td>
                   <td>
                     <Badge v={a.condition} />
                   </td>

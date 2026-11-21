@@ -55,8 +55,10 @@ function edit<T>(f: (s: Snapshot) => T) {
   });
   return navigator.locks.request("green-assets:write", transaction) as Promise<Result<T>>;
 }
-function validate(s: Snapshot, a: AssetInput) {
-  const z = byId(s.zones, a.zoneId).bounds;
+function sensorArea(s: Snapshot, a: AssetInput) {
+  return s.zones.find(({bounds: b}) => a.latitude >= b.south && a.latitude <= b.north && a.longitude >= b.west && a.longitude <= b.east)?.id;
+}
+function validate(a: AssetInput) {
   check(
     typeof a.name === "string" &&
       a.name.trim().length > 0 &&
@@ -77,11 +79,11 @@ function validate(s: Snapshot, a: AssetInput) {
   check(
     Number.isFinite(a.latitude) &&
       Number.isFinite(a.longitude) &&
-      a.latitude >= z.south &&
-      a.latitude <= z.north &&
-      a.longitude >= z.west &&
-      a.longitude <= z.east,
-    "Coordinates must be inside the selected zone.",
+      a.latitude >= -90 &&
+      a.latitude <= 90 &&
+      a.longitude >= -180 &&
+      a.longitude <= 180,
+    "Enter valid latitude and longitude coordinates.",
   );
 }
 function impacts(s: Snapshot, e: HazardEvent) {
@@ -111,9 +113,10 @@ export const repository = {
   createAsset: (actor: Actor, input: AssetInput) =>
     edit((s) => {
       permit(byId(s.users, actor.actorId).role === "admin");
-      validate(s, input);
+      validate(input);
       const a: Asset = {
         ...input,
+        zoneId: sensorArea(s, input),
         name: input.name.trim(),
         id: crypto.randomUUID(),
         condition: "unknown",
@@ -132,7 +135,6 @@ export const repository = {
             "name",
             "latitude",
             "longitude",
-            "zoneId",
             "inspectionIntervalDays",
             "nextInspectionDue",
           ].includes(k),
@@ -141,7 +143,7 @@ export const repository = {
       );
       const a = byId(s.assets, id),
         v = { ...a, ...patch };
-      validate(s, v);
+      validate(v);
       if (
         v.nextInspectionDue !== a.nextInspectionDue ||
         v.inspectionIntervalDays !== a.inspectionIntervalDays
@@ -150,7 +152,7 @@ export const repository = {
           !s.jobs.some((j) => j.assetId === id && j.status !== "completed"),
           "Complete outstanding jobs before editing the schedule.",
         );
-      Object.assign(a, v, { name: v.name.trim() });
+      Object.assign(a, v, { zoneId: sensorArea(s, v), name: v.name.trim() });
       return a;
     }),
   submitComplaint: (
