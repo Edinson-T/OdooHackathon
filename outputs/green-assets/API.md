@@ -2,13 +2,10 @@
 
 Supabase Auth handles Google OAuth using PKCE, session refresh and local sign-out. Member profiles use the authenticated user ID. The application reads administrator status from app metadata.
 
-The dashboard requests hourly rain estimates for today's elapsed hours in Europe/Brussels from Open-Meteo. It refreshes on entry and every 15 minutes. A failed source displays a status message.
+When an administrator selects live weather, the dashboard requests hourly rain, showers and temperature in Europe/Brussels from Open-Meteo. It uses the rain total and the highest temperature for today's elapsed hours, and the rain forecast for the next 24 hours. It refreshes on entry and every 15 minutes. A failed source displays a status message. The service is free and needs no key.
 
-Set `VITE_SENSOR_FEED_URL` to a CORS-enabled HTTPS endpoint returning a JSON array of readings. Use zone IDs from the asset registry's seed data. A flood station reports water level in metres. A disease station reports microbial counts per mL and mosquitoes per trap-day. Supply an ISO timestamp with timezone for each reading.
+The dengue feed stands in for a health authority's interface. It answers yes or no for each zone and gives no number of cases. In the simulated scenario the generator produces the answer. In live mode an administrator sets it by hand, and the alert is marked as entered by hand. No real health service is called.
 
-```json
-[{"zoneId":"<zone-id>","type":"flooding","value":1.7,"observedAt":"2026-11-21T09:00:00Z"},
- {"zoneId":"<zone-id>","type":"disease","value":130,"mosquitoes":25,"observedAt":"2026-11-21T09:00:00Z"}]
-```
+Newer readings supersede older ones for the same zone and type. A threshold crossing opens one alert per zone and type, which lasts until a reading clears it. Each affected asset receives a deduplicated job trigger. Live readings are set aside while the simulated scenario is selected.
 
-Admin users may also enter measured values in the dashboard. Newer readings supersede older ones at the same station. A threshold crossing creates one event per zone, type and local day. Each affected asset receives a deduplicated job trigger.
+There are no water level gauges or mosquito traps any more, and the app no longer reads a sensor feed.
