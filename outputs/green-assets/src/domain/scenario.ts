@@ -195,6 +195,36 @@ export function scenarioReadings(
   });
 }
 
+export interface RainDay {
+  day: number;
+  rain: number; // mm, the average of the zones.
+  forecast: boolean; // true for days after the scenario's current day.
+  byZone: number[]; // mm per zone, in the order of `zones`.
+}
+
+// Rain for each day from `first` to `last`: what fell up to the scenario's
+// current day, and the forecast for the days after it. A storm the presenter
+// triggers is never in a forecast.
+export function rainStrip(
+  zones: Pick<Zone, "id">[],
+  assets: Pick<Asset, "id" | "zoneId">[],
+  scenario: Scenario,
+  first: number,
+  last: number,
+): RainDay[] {
+  const days = simulate(zones, assets, scenario, last);
+  const strip: RainDay[] = [];
+  for (let day = Math.max(0, first); day <= last; day++) {
+    const forecast = day > scenario.day;
+    const byZone = zones.map((z) =>
+      forecast ? days[z.id][day - 1].forecast : days[z.id][day].rain,
+    );
+    const mean = byZone.reduce((a, b) => a + b, 0) / Math.max(1, byZone.length);
+    strip.push({ day, rain: round(mean, 1), forecast, byZone });
+  }
+  return strip;
+}
+
 export function newScenario(seed: number = simulation.defaultSeed): Scenario {
-  return { mode: "live", seed, day: 0, storms: [], controls: [] };
+  return { mode: "simulated", seed, day: 0, storms: [], controls: [] };
 }

@@ -192,6 +192,15 @@ export const repository = {
     const existing = s.users.find(u => u.id === user.id);
     if (existing) Object.assign(existing, user);
     else s.users.push(user);
+    // The simulated scenario is the default for everyone. It starts here, on
+    // day 1, the first time a workspace is opened with it selected.
+    if (
+      s.scenario.mode === "simulated" &&
+      !s.readings.some((r) => r.source === "simulated")
+    ) {
+      endWarnings(s);
+      runScenario(s);
+    }
   }),
   getSnapshot: () => result(load),
   resetDemo: () =>
@@ -353,18 +362,26 @@ export const repository = {
       }
       return s.scenario;
     }),
-  advanceScenario: (actor: Actor) =>
+  // Moves the scenario on by one day or several. Every day in between is
+  // judged in turn, so alerts and jobs come out the same as stepping by hand.
+  advanceScenario: (actor: Actor, days = 1) =>
     edit((s) => {
-      admin(s, actor);
+      byId(s.users, actor.actorId);
       simulated(s);
-      s.scenario.day += 1;
-      runScenario(s);
+      check(
+        Number.isInteger(days) && days >= 1 && days <= 60,
+        "Move the scenario on by 1 to 60 days.",
+      );
+      for (let i = 0; i < days; i++) {
+        s.scenario.day += 1;
+        runScenario(s);
+      }
       return s.scenario;
     }),
   // A storm on the scenario's current day. It was not in the forecast.
   triggerStorm: (actor: Actor, zoneId: string) =>
     edit((s) => {
-      admin(s, actor);
+      byId(s.users, actor.actorId);
       simulated(s);
       const day = s.scenario.day;
       byId(s.zones, zoneId);
@@ -376,7 +393,7 @@ export const repository = {
   // Back to day 1. With a seed, the weather is a new one.
   restartScenario: (actor: Actor, seed?: number) =>
     edit((s) => {
-      admin(s, actor);
+      byId(s.users, actor.actorId);
       simulated(s);
       check(
         seed === undefined || (Number.isInteger(seed) && seed >= 0),

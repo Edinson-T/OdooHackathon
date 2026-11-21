@@ -4,7 +4,12 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { checklist } from "../src/domain/checklists.ts";
 import { hazardConfig, simulation } from "../src/domain/hazardConfig.ts";
-import { newScenario, scenarioReadings, simulate } from "../src/domain/scenario.ts";
+import {
+  newScenario,
+  rainStrip,
+  scenarioReadings,
+  simulate,
+} from "../src/domain/scenario.ts";
 import {
   activeEvents,
   explain,
@@ -254,4 +259,21 @@ test("a warning is in effect only while a current reading backs it", () => {
   assert.equal(flooded(simulated, "zone-1"), true);
   assert.equal(flooded(simulated, "zone-0"), false);
   assert.equal(activeEvents({ ...simulated, hazardEvents: [{ ...event, clearedAt: now }] }, now).length, 0);
+});
+
+test("the rain strip shows what fell up to today and the forecast after it", () => {
+  const scenario = { ...newScenario(), day: 3, storms: [{ zoneId: "zone-1", day: 3 }] };
+  const strip = rainStrip(zones, assets, scenario, 0, 13);
+  const days = simulate(zones, assets, scenario, 13);
+  assert.equal(strip.length, 14);
+  assert.deepEqual(strip.map((d) => d.forecast), [false, false, false, false, ...Array(10).fill(true)]);
+  // Up to today: the rain that fell, the triggered storm included.
+  assert.deepEqual(strip[3].byZone, zones.map((z) => days[z.id][3].rain));
+  assert.ok(strip[3].byZone[1] >= simulation.weather.triggeredStormMin);
+  // After today: the forecast made the day before.
+  assert.deepEqual(strip[4].byZone, zones.map((z) => days[z.id][3].forecast));
+  // Moving on a day turns that day's forecast into what fell.
+  const next = rainStrip(zones, assets, { ...scenario, day: 4 }, 0, 13);
+  assert.equal(next[4].forecast, false);
+  assert.deepEqual(next[4].byZone, zones.map((z) => days[z.id][4].rain));
 });

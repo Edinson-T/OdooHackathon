@@ -1024,3 +1024,79 @@ button:disabled {
   border-style: dashed;
   color: var(--hazard);
 }
+
+/* Rain by day in the simulated scenario. Solid bars fell, hatched bars are forecast. */
+.rainstrip {
+  margin: 12px 0 6px;
+}
+.rainstrip figcaption {
+  color: #687468;
+  font-size: 0.8rem;
+  margin-bottom: 8px;
+}
+.rainbars {
+  display: flex;
+  align-items: stretch;
+  gap: 3px;
+  border-bottom: 1px solid #b9c5b6;
+  height: 92px;
+  position: relative;
+}
+.rainlimit {
+  border-top: 1px dashed #8f3a22;
+  color: #8f3a22;
+  font-size: 0.68rem;
+  left: 0;
+  line-height: 1.5;
+  pointer-events: none;
+  position: absolute;
+  right: 0;
+  text-align: right;
+}
+.rainday {
+  display: flex;
+  align-items: flex-end;
+  flex: 1;
+  background: none;
+  border: 0;
+  border-radius: 0;
+  min-width: 0;
+  padding: 0;
+}
+.rainday.today {
+  background: #e9efe3;
+}
+button.rainday:hover {
+  background: #edf3e9;
+}
+.rainday i {
+  background: #8fbcd8;
+  border-radius: 4px 4px 0 0;
+  display: block;
+  width: 100%;
+}
+.rainday.over i {
+  background: #2a6f9e;
+}
+.rainday.forecast i {
+  background: repeating-linear-gradient(135deg, #b9d6e8 0 4px, #fff 4px 7px);
+  outline: 1px dashed #2a6f9e;
+  outline-offset: -1px;
+}
+.rainday.forecast.over i {
+  background: repeating-linear-gradient(135deg, #2a6f9e 0 4px, #fff 4px 7px);
+}
+.raindays {
+  display: flex;
+  gap: 3px;
+}
+.raindays span {
+  color: #687468;
+  flex: 1;
+  font-size: 0.72rem;
+  text-align: center;
+}
+.raindays .today {
+  color: #203e2e;
+  font-weight: 700;
+}

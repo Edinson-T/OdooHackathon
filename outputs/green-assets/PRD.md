@@ -10,4 +10,4 @@ The map shows a rain gauge, a water level gauge and a mosquito trap in each zone
 
 Alerts create inspection work. A watch on rain sends members to farms and ponds before the rain arrives. A flood warning asks for an inspection of every asset in the zone, and that zone's jobs open only when the water has receded. A mosquito breeding warning asks members to look for standing water. A job raised by an alert carries extra checks for that hazard.
 
-For a presentation, an administrator can switch from live sources to a simulated scenario and step through it day by day. Everything it produces is marked as simulated.
+Readings come from a simulated scenario unless an administrator switches to live sources. Any member can play the scenario, step through it day by day or jump to a later day on a strip that shows each day's rain. Everything it produces is marked as simulated.

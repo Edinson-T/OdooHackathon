@@ -5,6 +5,8 @@ import {
   CloudRain,
   Dices,
   Megaphone,
+  Pause,
+  Play,
   RotateCcw,
   SkipForward,
   Waves,
@@ -21,8 +23,13 @@ import {
   todayRain,
   valueText,
 } from "../../domain/warnings";
+import { rainStrip } from "../../domain/scenario";
 import type { HazardLevel, HazardType, Reading } from "../../domain/types";
 import { repository as repo } from "../../services/localRepository";
+import { RainStrip } from "./RainStrip";
+
+// The strip shows two weeks at a time, and playing stops at the end of them.
+const stripDays = 14;
 
 const icons = { rainfall: CloudRain, flooding: Waves, mosquito: Bug };
 
@@ -90,6 +97,30 @@ export function HazardPanel() {
     };
   }, [live]);
 
+  // Playing moves the scenario on one day at a time, slowly enough to read
+  // each day, and stops at the end of the two weeks on the strip.
+  const [playing, setPlaying] = useState(false);
+  const firstDay = Math.floor(scenario.day / stripDays) * stripDays;
+  const lastDay = firstDay + stripDays - 1;
+  const advance = (days = 1) =>
+    run(
+      () => repo.advanceScenario(actor, days),
+      (sc) => "Scenario day " + (sc.day + 1) + ".",
+    );
+  useEffect(() => {
+    if (!playing) return;
+    if (live || scenario.day >= lastDay) {
+      setPlaying(false);
+      return;
+    }
+    const slow = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const timer = setTimeout(
+      () => void advance().then((ok) => ok || setPlaying(false)),
+      slow ? 2500 : 1500,
+    );
+    return () => clearTimeout(timer);
+  }, [playing, live, scenario.day]);
+
   const zoneName = (id: string) => zones.find((z) => z.id === id)?.name ?? id;
   const zoneOrder = (id: string) => zones.findIndex((z) => z.id === id);
   const alerts = activeEvents(snapshot).sort(
@@ -129,9 +160,11 @@ export function HazardPanel() {
           The thresholds are illustrative values for this demo and have not
           been validated.
         </p>
-        {isAdmin && (
+        {/* Every member can run the scenario. Only an admin changes the data source. */}
+        {(isAdmin || !live) && (
           <div className="hazardtools">
             <div className="actions">
+              {isAdmin && (
               <div className="switch" role="group" aria-label="Data source">
                 <button
                   className={live ? "sel" : ""}
@@ -162,17 +195,26 @@ export function HazardPanel() {
                   Simulated scenario
                 </button>
               </div>
+              )}
               {!live && (
                 <>
                   <button
                     className="primary"
-                    disabled={busy}
-                    onClick={() =>
-                      void run(
-                        () => repo.advanceScenario(actor),
-                        (sc) => "Scenario day " + (sc.day + 1) + ".",
-                      )
-                    }
+                    aria-pressed={playing}
+                    onClick={() => {
+                      if (playing) setPlaying(false);
+                      // From the last day on the strip, play starts the next two weeks.
+                      else if (scenario.day >= lastDay)
+                        void advance().then((ok) => ok && setPlaying(true));
+                      else setPlaying(true);
+                    }}
+                  >
+                    {playing ? <Pause /> : <Play />}
+                    {playing ? "Pause" : "Play"}
+                  </button>
+                  <button
+                    disabled={busy || playing}
+                    onClick={() => void advance()}
                   >
                     <SkipForward />
                     Next day
@@ -202,19 +244,21 @@ export function HazardPanel() {
                   </button>
                   <button
                     disabled={busy}
-                    onClick={() =>
+                    onClick={() => {
+                      setPlaying(false);
                       void run(
                         () => repo.restartScenario(actor),
                         () => "Scenario back at day 1.",
-                      )
-                    }
+                      );
+                    }}
                   >
                     <RotateCcw />
                     Restart
                   </button>
                   <button
                     disabled={busy}
-                    onClick={() =>
+                    onClick={() => {
+                      setPlaying(false);
                       void run(
                         () =>
                           repo.restartScenario(
@@ -222,8 +266,8 @@ export function HazardPanel() {
                             Math.floor(Math.random() * 1000000),
                           ),
                         (sc) => "New weather, seed " + sc.seed + ".",
-                      )
-                    }
+                      );
+                    }}
                   >
                     <Dices />
                     New random weather
@@ -232,6 +276,16 @@ export function HazardPanel() {
               )}
             </div>
           </div>
+        )}
+        {!live && (
+          <RainStrip
+            days={rainStrip(zones, snapshot.assets, scenario, firstDay, lastDay)}
+            today={scenario.day}
+            zoneNames={zones.map((z) => z.name)}
+            onJump={(day) => {
+              if (!playing && day > scenario.day) void advance(day - scenario.day);
+            }}
+          />
         )}
         {alerts.length || snapshot.healthNotices.length ? (
           <ul className="alerts">
