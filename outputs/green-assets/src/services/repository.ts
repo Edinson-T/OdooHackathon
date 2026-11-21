@@ -21,6 +21,7 @@ export type AssetInput = Pick<
   | "type"
   | "latitude"
   | "longitude"
+  | "zoneId"
   | "inspectionIntervalDays"
   | "nextInspectionDue"
 >;

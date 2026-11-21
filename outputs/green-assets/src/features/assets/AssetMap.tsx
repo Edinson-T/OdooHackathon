@@ -1,10 +1,16 @@
-import { exceeds,fieldDate,station } from "../../domain/warnings";
+import { activeEvents, alertTitle, byUrgency } from "../../domain/warnings";
 import { useEffect, useRef } from "react";
 import L from "leaflet";
 import { renderToStaticMarkup } from "react-dom/server";
 import { KindIcon, go } from "../../components/ui";
 import { useApp } from "../../app/provider";
-import type { Asset } from "../../domain/types";
+import type { Asset, HazardType } from "../../domain/types";
+// Short names for the labels on the zones, where room is tight.
+const chipNames: Record<HazardType, string> = {
+  rainfall: "Rain",
+  heat: "Heat",
+  dengue: "Dengue",
+};
 export function AssetMap({ assets }: { assets: Asset[] }) {
   const el = useRef<HTMLDivElement>(null),
     { s } = useApp();
@@ -18,6 +24,14 @@ export function AssetMap({ assets }: { assets: Asset[] }) {
     const bounds = L.latLngBounds([50.85, 4.33], [50.91, 4.47]);
     map.fitBounds(bounds, { padding: [8, 10] });
     L.control.zoom({ position: "topright" }).addTo(map);
+    const land = L.imageOverlay(
+      "./landscape.png",
+      [
+        [50.82, 4.1],
+        [50.94, 4.7],
+      ],
+      { attribution: "Green Assets · illustrated zone map" },
+    ).addTo(map);
     const street = L.tileLayer(
       "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
       {
@@ -26,15 +40,68 @@ export function AssetMap({ assets }: { assets: Asset[] }) {
           '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
       },
     );
-    street.addTo(map);
+    street.once("tileerror", () => {
+      map.removeLayer(street);
+      land.addTo(map);
+    });
+    L.control
+      .layers(
+        { "Field map": land, "Street map": street },
+        {},
+        { position: "topright" },
+      )
+      .addTo(map);
+    const active = activeEvents(s);
     s.zones.forEach((z) => {
-      for(const type of ["rainfall","flooding","disease"] as const) {
-        const r=s.readings.find(r=>r.zoneId===z.id && r.type===type && fieldDate(r.observedAt)===fieldDate(new Date().toISOString()));
-        const warning=r && exceeds(r);
-        const name={rainfall:"Heavy rain",flooding:"Flood",disease:"Disease"}[type];
-        const label=name+(warning ? " warning" : " station")+(r ? " · "+r.value+" "+({rainfall:"mm",flooding:"m",disease:"counts/mL"}[type])+(type==="disease" ? ", "+r.mosquitoes+" mosquitoes/trap-day":"") : " · awaiting data");
-        L.circleMarker(station(z,type),{radius:warning?11:6,color:warning?"#b43225":"#416478",fillOpacity:0.85}).bindTooltip(label,{permanent:!!warning}).addTo(map);
-      }
+      const here = active.filter((e) => e.zoneId === z.id).sort(byUrgency);
+      const b = z.bounds;
+      // A zone with any alert gets one red frame and a light wash. Which
+      // alerts it has is said by the labels on the zone, one per alert.
+      L.rectangle(
+        [
+          [b.south, b.west],
+          [b.north, b.east],
+        ],
+        here.length
+          ? {
+              color: "#c81e1e",
+              weight: 4,
+              fillColor: "#c81e1e",
+              fillOpacity: 0.07,
+              interactive: false,
+            }
+          : {
+              color: "#607c56",
+              weight: 1,
+              dashArray: "4 7",
+              fillColor: "#b4cda9",
+              fillOpacity: 0.08,
+              interactive: false,
+            },
+      ).addTo(map);
+      const chips = here.map(
+        (e) =>
+          `<span class="zone-chip ${e.type}" title="${alertTitle(e.type)}">${chipNames[e.type]}</span>`,
+      );
+      if (chips.length)
+        L.marker([b.north - 0.0045, (b.west + b.east) / 2], {
+          icon: L.divIcon({
+            className: "zone-alerts",
+            html: chips.join(""),
+            iconSize: [440, 18],
+            iconAnchor: [220, 9],
+          }),
+          interactive: false,
+        }).addTo(map);
+      L.marker([b.north - 0.001, (b.west + b.east) / 2], {
+        icon: L.divIcon({
+          className: "zone-label",
+          html: z.name.toUpperCase(),
+          iconSize: [140, 16],
+          iconAnchor: [70, 8],
+        }),
+        interactive: false,
+      }).addTo(map);
     });
     assets.forEach((a) => {
       const marker = L.marker([a.latitude, a.longitude], {

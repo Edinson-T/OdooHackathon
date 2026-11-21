@@ -8,8 +8,10 @@ import {
   Empty,
   go,
   dateText,
+  reasons,
 } from "../../components/ui";
 import type { InspectionJob } from "../../domain/types";
+import { localDate } from "../../lib/clock";
 import type { CompletionInput } from "../../services/repository";
 export function Jobs({ mine = false }: { mine?: boolean }) {
   const { s, identity, busy, run } = useApp();
@@ -82,9 +84,9 @@ export function Jobs({ mine = false }: { mine?: boolean }) {
                   {a.name}
                 </a>
                 <small>
-                  {j.triggers.filter(t => t.kind === "due").map(t => t.dueDate + " · ")}{Array.from(
-                    new Set(j.triggers.map((t) => labels[t.kind])),
-                  ).join(" + ")}
+                  {s!.zones.find((z) => z.id === a.zoneId)?.name} ·{" "}
+                  {j.triggers.filter(t => t.kind === "due").map(t => t.dueDate + " · ")}
+                  {reasons(s!, j.triggers).join(" + ")}
                 </small>
               </div>
               <Badge v={j.status} />
@@ -126,6 +128,27 @@ export function Jobs({ mine = false }: { mine?: boolean }) {
       </section>
       {!mine && <section className="panel pad"><h2>Upcoming inspections</h2>
         <p>Claims open 24 hours before the inspection date, at local midnight.</p>
+        {!s!.dueChecks && (
+          <div className="actions">
+            <button
+              disabled={busy}
+              onClick={() =>
+                void run(
+                  () => repo.createDueJobs(localDate(), true),
+                  (r) =>
+                    r.createdJobIds.length + r.updatedJobIds.length
+                      ? "Inspections that are due are now jobs."
+                      : "No inspection is due yet.",
+                )
+              }
+            >
+              Check due inspections
+            </button>
+            <span className="subtle">
+              Inspections that are due become jobs once this check has run.
+            </span>
+          </div>
+        )}
         {s!.assets.filter(a => !type || type === a.type).slice().sort((a,b) => a.nextInspectionDue.localeCompare(b.nextInspectionDue)).map(a =>
           <div className="row" key={a.id}><a href={"#/assets/" + a.id}>{a.name}</a><time>{a.nextInspectionDue}</time></div>)}
       </section>}
@@ -188,6 +211,7 @@ export function Inspect({ job }: { job: InspectionJob }) {
         }}
       >
         <h2>Inspection checklist</h2>
+        <p className="subtle">Requested by: {reasons(s!, job.triggers).join(" + ")}</p>
         {job.checklist.questions.map((q) => (
           <label key={q.id}>
             {q.label}

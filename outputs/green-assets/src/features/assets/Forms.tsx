@@ -8,7 +8,9 @@ import {
   Badge,
   Empty,
   dateText,
+  reasons,
 } from "../../components/ui";
+import { activeEvents, alertTitle } from "../../domain/warnings";
 import { repository as repo } from "../../services/localRepository";
 import type { Asset, AssetType } from "../../domain/types";
 import { localDate } from "../../lib/clock";
@@ -72,16 +74,22 @@ export function Report({ assetId }: { assetId?: string }) {
 }
 export function Admin({ editId }: { editId?: string }) {
   const { s, identity, run, busy } = useApp();
-  const a = s!.assets.find((a) => a.id === editId);
-  const [lat, Y] = useState(String(a?.latitude ?? 50.88)),
+  const a = s!.assets.find((a) => a.id === editId),
+    first = s!.zones[0];
+  const [zone, Z] = useState(a?.zoneId || first.id),
+    [lat, Y] = useState(
+      String(a?.latitude ?? (first.bounds.north + first.bounds.south) / 2),
+    ),
     [lng, X] = useState(String(a?.longitude ?? 4.4));
   if (s!.users.find((u) => u.id === identity)?.role !== "admin")
     return <Empty text="An administrator account is required to manage assets." />;
+  const bounds = s!.zones.find((z) => z.id === zone)!.bounds;
   async function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const f = new FormData(e.currentTarget);
     const patch = {
       name: String(f.get("name")),
+      zoneId: zone,
       latitude: Number(lat),
       longitude: Number(lng),
       inspectionIntervalDays: Number(
@@ -143,8 +151,26 @@ export function Admin({ editId }: { editId?: string }) {
               ))}
             </select>
           </label>
+          <label>
+            Zone
+            <select
+              value={zone}
+              onChange={(e) => {
+                const z = s!.zones.find((z) => z.id === e.target.value)!;
+                Z(z.id);
+                Y(((z.bounds.north + z.bounds.south) / 2).toFixed(4));
+                X(((z.bounds.west + z.bounds.east) / 2).toFixed(4));
+              }}
+            >
+              {s!.zones.map((z) => (
+                <option key={z.id} value={z.id}>
+                  {z.name}
+                </option>
+              ))}
+            </select>
+          </label>
         </div>
-        <PinPicker latitude={Number(lat)} longitude={Number(lng)} onPick={(lat,lng) => { Y(String(lat)); X(String(lng)); }} />
+        <PinPicker key={zone} bounds={bounds} latitude={Number(lat)} longitude={Number(lng)} onPick={(lat,lng) => { Y(String(lat)); X(String(lng)); }} />
         <div className="twocol">
           <label>
             Inspection interval (days)
@@ -189,10 +215,18 @@ export function Details({ id }: { id: string }) {
       <div className="pagetop">
         <div>
           <div className="eyebrow">
-            {labels[a.type]}
+            {labels[a.type]} / {s!.zones.find((z) => z.id === a.zoneId)?.name}
           </div>
           <h1>{a.name}</h1>
-          <Badge v={a.condition} />
+          <Badge v={a.condition} />{" "}
+          {activeEvents(s!)
+            .filter((e) => e.zoneId === a.zoneId)
+            .map((e) => (
+              <span key={e.id} className={"badge " + e.level} title={e.reason}>
+                <i />
+                {alertTitle(e.type)} in this zone
+              </span>
+            ))}
         </div>
         <button className="primary" onClick={() => go("/report/" + id)}>
           Report a problem
@@ -243,7 +277,7 @@ export function Details({ id }: { id: string }) {
             <div className="row">
               <b>
                 <KindIcon kind={a.type} />{" "}
-                {j.triggers.map((t) => labels[t.kind]).join(" · ")}
+                {reasons(s!, j.triggers).join(" · ")}
               </b>
               <Badge v={j.status} />
             </div>

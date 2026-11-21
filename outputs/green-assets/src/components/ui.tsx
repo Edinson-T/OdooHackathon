@@ -1,5 +1,6 @@
 import { Sprout, Waves, Sun, PackageOpen } from "lucide-react";
-import type { AssetType } from "../domain/types";
+import { alertTitle } from "../domain/warnings";
+import type { AssetType, Snapshot, Trigger } from "../domain/types";
 export const labels: Record<string, string> = {
   farm: "Farm",
   pond: "Pond",
@@ -20,7 +21,27 @@ export const labels: Record<string, string> = {
   low: "Low",
   medium: "Medium",
   high: "High",
+  watch: "Watch",
+  warning: "Warning",
+  live: "Live source",
+  sensor: "Sensor feed",
+  manual: "Entered by an admin",
+  simulated: "Simulated",
 };
+// What caused a job, in words. A hazard is named by its alert, for example
+// "High temperature warning".
+export function reasons(s: Snapshot, triggers: Trigger[]) {
+  return Array.from(
+    new Set(
+      triggers.map((t) => {
+        if (t.kind !== "hazard") return labels[t.kind];
+        const event = s.hazardEvents.find((e) => e.id === t.hazardEventId);
+        if (!event) return labels.hazard;
+        return event.type === "rainfall" ? "After heavy rain" : alertTitle(event.type);
+      }),
+    ),
+  );
+}
 export function KindIcon({
   kind,
   size = 19,

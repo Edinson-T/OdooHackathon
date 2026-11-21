@@ -22,7 +22,7 @@ export interface Asset {
   type: AssetType;
   latitude: number;
   longitude: number;
-  zoneId?: Id;
+  zoneId: Id;
   condition: Condition;
   inspectionIntervalDays: number;
   nextInspectionDue: LocalDate;
@@ -39,10 +39,16 @@ export interface Complaint {
   createdAt: Timestamp;
 }
 
+export type HazardType = "rainfall" | "heat" | "dengue";
+// Alerts have one level. The field is kept so saved records stay readable.
+export type HazardLevel = "watch" | "warning";
+// Where a reading came from. Simulated readings come from the scenario generator.
+export type ReadingSource = "live" | "sensor" | "manual" | "simulated";
+
 export type Trigger =
   | { kind: "complaint"; complaintId: Id; key: string }
   | { kind: "due"; dueDate: LocalDate; key: string }
-  | { kind: "hazard"; hazardEventId: Id; key: string };
+  | { kind: "hazard"; hazardEventId: Id; key: string; level?: HazardLevel };
 
 export interface Checklist {
   version: number;
@@ -69,11 +75,35 @@ export interface InspectionJob {
 
 export interface HazardEvent {
   id: Id;
-  type: "rainfall" | "flooding" | "disease";
+  type: HazardType;
   zoneId: Id;
-  affectedAssetIds: Id[];
+  level: HazardLevel; // Current level while active, last level once cleared.
+  reason: string; // The rule that fired, in plain words.
+  source: ReadingSource;
+  affectedAssetIds: Id[]; // Assets that received an inspection trigger.
   simulated: boolean;
   createdAt: Timestamp;
+  clearedAt: Timestamp | null; // null while the warning is active.
+}
+
+export interface Reading {
+  zoneId: Id;
+  type: HazardType;
+  // rainfall: mm today. heat: the day's highest temperature in °C.
+  // dengue: 1 when the health feed reports dengue in the zone, otherwise 0.
+  value: number;
+  forecast?: number; // rainfall only: mm expected in the next 24 hours.
+  source: ReadingSource;
+  note?: string; // What lies behind a simulated reading.
+  observedAt: Timestamp;
+}
+
+export interface Scenario {
+  mode: "live" | "simulated";
+  seed: number; // The same seed gives the same weather on every device.
+  day: number; // 0 is the first day of the simulated scenario.
+  // A storm, a heatwave or a dengue report that someone triggered by hand.
+  triggered: { zoneId: Id; day: number; kind: HazardType }[];
 }
 
 export interface Snapshot {
@@ -85,12 +115,9 @@ export interface Snapshot {
   jobs: InspectionJob[];
   readings: Reading[];
   hazardEvents: HazardEvent[];
-}
-
-export interface Reading {
-  zoneId:string;
-  type:HazardEvent["type"];
-  value:number;
-  mosquitoes?:number;
-  observedAt:string;
+  scenario: Scenario;
+  // Scheduled inspections become jobs only after someone asks for the check,
+  // so a new workspace opens with an empty job list.
+  dueChecks: boolean;
+  healthNotices: Id[]; // Zones with a public health notice in effect.
 }
