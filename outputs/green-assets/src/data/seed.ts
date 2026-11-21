@@ -1,7 +1,6 @@
 import type { Snapshot, AssetType, Condition } from "../domain/types";
 import { localDate } from "../lib/clock";
 import { checklist } from "../domain/checklists";
-import { newScenario } from "../domain/scenario";
 export function seed(): Snapshot {
   const zones = ["North meadow", "River basin", "South ridge"].map(
     (name, i) => ({
@@ -57,8 +56,6 @@ export function seed(): Snapshot {
     complaints: [],
     readings: [],
     hazardEvents: [],
-    scenario: newScenario(),
-    healthNotices: [],
   };
   names.forEach((name, i) => {
     const type = kinds[i % 3],

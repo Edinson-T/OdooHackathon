@@ -8,9 +8,7 @@ import {
   Empty,
   go,
   dateText,
-  reasons,
 } from "../../components/ui";
-import { flooded } from "../../domain/warnings";
 import type { InspectionJob } from "../../domain/types";
 import type { CompletionInput } from "../../services/repository";
 export function Jobs({ mine = false }: { mine?: boolean }) {
@@ -74,8 +72,6 @@ export function Jobs({ mine = false }: { mine?: boolean }) {
         </div>
         {jobs.map((j) => {
           const a = s!.assets.find((x) => x.id === j.assetId)!;
-          // Nobody is sent into a zone while its water level is at warning.
-          const locked = flooded(s!, a.zoneId);
           return (
             <div key={j.id} className="jobrow">
               <span className={"kindbox " + a.type}>
@@ -87,14 +83,15 @@ export function Jobs({ mine = false }: { mine?: boolean }) {
                 </a>
                 <small>
                   {s!.zones.find((z) => z.id === a.zoneId)?.name} ·{" "}
-                  {j.triggers.filter(t => t.kind === "due").map(t => t.dueDate + " · ")}
-                  {reasons(s!, j.triggers).join(" + ")}
+                  {j.triggers.filter(t => t.kind === "due").map(t => t.dueDate + " · ")}{Array.from(
+                    new Set(j.triggers.map((t) => labels[t.kind])),
+                  ).join(" + ")}
                 </small>
               </div>
               <Badge v={j.status} />
               {j.status === "available" ? (
                 <button
-                  disabled={busy || occupied || locked}
+                  disabled={busy || occupied}
                   onClick={async () => {
                     if (
                       await run(
@@ -105,11 +102,7 @@ export function Jobs({ mine = false }: { mine?: boolean }) {
                       go("/activity");
                   }}
                 >
-                  {locked
-                    ? "Opens when the water recedes"
-                    : occupied
-                      ? "Finish current inspection first"
-                      : "Claim job"}
+                  {occupied ? "Finish current inspection first" : "Claim job"}
                 </button>
               ) : j.status === "assigned" ? (
                 <>
@@ -169,11 +162,6 @@ export function Inspect({ job }: { job: InspectionJob }) {
     return (
       <Empty text="Only the assigned member can submit this inspection." />
     );
-  const afterFlood = job.triggers.some(
-    (t) =>
-      t.kind === "hazard" &&
-      s!.hazardEvents.find((e) => e.id === t.hazardEventId)?.type === "flooding",
-  );
   return (
     <>
       <div className="eyebrow">FIELD INSPECTION</div>
@@ -201,13 +189,6 @@ export function Inspect({ job }: { job: InspectionJob }) {
         }}
       >
         <h2>Inspection checklist</h2>
-        <p className="subtle">Requested by: {reasons(s!, job.triggers).join(" + ")}</p>
-        {afterFlood && (
-          <p className="safety" role="note">
-            After a flood, stay out of standing water and do not touch wet
-            electrical equipment. Report damage in your notes.
-          </p>
-        )}
         {job.checklist.questions.map((q) => (
           <label key={q.id}>
             {q.label}
