@@ -8,7 +8,9 @@ import {
   Badge,
   Empty,
   dateText,
+  reasons,
 } from "../../components/ui";
+import { activeEvents, alertTitle } from "../../domain/warnings";
 import { repository as repo } from "../../services/localRepository";
 import type { Asset, AssetType } from "../../domain/types";
 import { localDate } from "../../lib/clock";
@@ -216,7 +218,15 @@ export function Details({ id }: { id: string }) {
             {labels[a.type]} / {s!.zones.find((z) => z.id === a.zoneId)?.name}
           </div>
           <h1>{a.name}</h1>
-          <Badge v={a.condition} />
+          <Badge v={a.condition} />{" "}
+          {activeEvents(s!)
+            .filter((e) => e.zoneId === a.zoneId)
+            .map((e) => (
+              <span key={e.id} className={"badge " + e.level} title={e.reason}>
+                <i />
+                {alertTitle(e.type, e.level)} in this zone
+              </span>
+            ))}
         </div>
         <button className="primary" onClick={() => go("/report/" + id)}>
           Report a problem
@@ -267,7 +277,7 @@ export function Details({ id }: { id: string }) {
             <div className="row">
               <b>
                 <KindIcon kind={a.type} />{" "}
-                {j.triggers.map((t) => labels[t.kind]).join(" · ")}
+                {reasons(s!, j.triggers).join(" · ")}
               </b>
               <Badge v={j.status} />
             </div>
