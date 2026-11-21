@@ -39,10 +39,17 @@ export interface Complaint {
   createdAt: Timestamp;
 }
 
+export type HazardType = "rainfall" | "flooding" | "mosquito";
+// A watch says a threshold is about to be crossed, or was crossed and the
+// reading is still falling. A warning says it is crossed now.
+export type HazardLevel = "watch" | "warning";
+// Where a reading came from. Simulated readings come from the scenario generator.
+export type ReadingSource = "live" | "sensor" | "manual" | "simulated";
+
 export type Trigger =
   | { kind: "complaint"; complaintId: Id; key: string }
   | { kind: "due"; dueDate: LocalDate; key: string }
-  | { kind: "hazard"; hazardEventId: Id; key: string };
+  | { kind: "hazard"; hazardEventId: Id; key: string; level?: HazardLevel };
 
 export interface Checklist {
   version: number;
@@ -69,11 +76,36 @@ export interface InspectionJob {
 
 export interface HazardEvent {
   id: Id;
-  type: "rainfall" | "flooding" | "disease";
+  type: HazardType;
   zoneId: Id;
-  affectedAssetIds: Id[];
+  level: HazardLevel; // Current level while active, last level once cleared.
+  reason: string; // The rule that fired, in plain words.
+  source: ReadingSource;
+  affectedAssetIds: Id[]; // Assets that received an inspection trigger.
   simulated: boolean;
   createdAt: Timestamp;
+  clearedAt: Timestamp | null; // null while the warning is active.
+}
+
+export interface Reading {
+  zoneId: Id;
+  type: HazardType;
+  // rainfall: mm today. flooding: water level in metres.
+  // mosquito: mosquitoes per trap per day.
+  value: number;
+  forecast?: number; // rainfall only: mm expected in the next 24 hours.
+  source: ReadingSource;
+  note?: string; // What lies behind a simulated reading.
+  observedAt: Timestamp;
+}
+
+export interface Scenario {
+  mode: "live" | "simulated";
+  seed: number; // The same seed gives the same weather on every device.
+  day: number; // 0 is the first day of the simulated scenario.
+  storms: { zoneId: Id; day: number }[]; // Storms the presenter triggered.
+  // Inspections that found an asset healthy, by scenario day.
+  controls: { zoneId: Id; assetId: Id; day: number }[];
 }
 
 export interface Snapshot {
@@ -85,12 +117,6 @@ export interface Snapshot {
   jobs: InspectionJob[];
   readings: Reading[];
   hazardEvents: HazardEvent[];
-}
-
-export interface Reading {
-  zoneId:string;
-  type:HazardEvent["type"];
-  value:number;
-  mosquitoes?:number;
-  observedAt:string;
+  scenario: Scenario;
+  healthNotices: Id[]; // Zones with a public health notice in effect.
 }

@@ -16,8 +16,10 @@ import {
   dateText,
 } from "../../components/ui";
 import { AssetMap } from "./AssetMap";
+import { HazardPanel } from "../hazards/HazardPanel";
 import { localDate } from "../../lib/clock";
-export function Registry() {
+// `hazards` puts the warnings and readings between the map and the table.
+export function Registry({ hazards = false }: { hazards?: boolean }) {
   const { s } = useApp();
   const [q, Q] = useState(""),
     [kind, K] = useState(""),
@@ -71,12 +73,24 @@ export function Registry() {
               {labels[k]}
             </span>
           ))}
+          <span>
+            <i className="zonekey watch" />
+            Watch
+          </span>
+          <span>
+            <i className="zonekey warning" />
+            Warning
+          </span>
+          {s!.scenario.mode === "simulated" && (
+            <span className="simtag">SIMULATED DATA</span>
+          )}
           <span className="zones">
             <MapPin size={14} />
             {s!.zones.length} zones
           </span>
         </div>
       </section>
+      {hazards && <HazardPanel />}
       <section className="panel">
         <div className="panelhead">
           <div>
