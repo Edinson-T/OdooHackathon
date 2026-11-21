@@ -1,0 +1,31 @@
+{
+  "name": "green-assets",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "lint": "eslint src"
+  },
+  "dependencies": {
+    "react": "19.1.1",
+    "react-dom": "19.1.1",
+    "leaflet": "1.9.4",
+    "lucide-react": "0.468.0",
+    "zod": "3.24.2"
+  },
+  "devDependencies": {
+    "@types/leaflet": "1.9.16",
+    "@types/react": "19.1.10",
+    "@types/react-dom": "19.1.7",
+    "@vitejs/plugin-react": "4.7.0",
+    "vite": "6.4.1",
+    "typescript": "5.8.3",
+    "tailwindcss": "4.1.13",
+    "@tailwindcss/vite": "4.1.13",
+    "eslint": "9.35.0",
+    "typescript-eslint": "8.43.0"
+  }
+}
