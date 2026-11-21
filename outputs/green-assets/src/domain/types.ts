@@ -53,7 +53,6 @@ export interface InspectionJob {
   id: Id;
   assetId: Id;
   triggers: Trigger[];
-  priority: "low" | "medium" | "high";
   status: "available" | "assigned" | "completed";
   assigneeId: Id | null;
   createdAt: Timestamp;
@@ -70,10 +69,10 @@ export interface InspectionJob {
 
 export interface HazardEvent {
   id: Id;
-  type: "rainfall" | "flooding";
+  type: "rainfall" | "flooding" | "disease";
   zoneId: Id;
   affectedAssetIds: Id[];
-  simulated: true;
+  simulated: boolean;
   createdAt: Timestamp;
 }
 
@@ -84,5 +83,14 @@ export interface Snapshot {
   assets: Asset[];
   complaints: Complaint[];
   jobs: InspectionJob[];
+  readings: Reading[];
   hazardEvents: HazardEvent[];
+}
+
+export interface Reading {
+  zoneId:string;
+  type:HazardEvent["type"];
+  value:number;
+  mosquitoes?:number;
+  observedAt:string;
 }

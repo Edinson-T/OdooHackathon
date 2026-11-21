@@ -14,21 +14,19 @@ import type { CompletionInput } from "../../services/repository";
 export function Jobs({ mine = false }: { mine?: boolean }) {
   const { s, identity, busy, run } = useApp();
   const [type, T] = useState(""),
-    [reason, R] = useState(""),
-    [priority, P] = useState("");
+    [reason, R] = useState("");
+  const occupied = s!.jobs.some(j => j.status === "assigned" && j.assigneeId === identity);
   const jobs = s!.jobs
     .filter(
       (j) =>
         (mine ? j.assigneeId === identity : j.status === "available") &&
         (!type || s!.assets.find((a) => a.id === j.assetId)?.type === type) &&
-        (!reason || j.triggers.some((t) => t.kind === reason)) &&
-        (!priority || priority === j.priority),
+        (!reason || j.triggers.some((t) => t.kind === reason)),
     )
     .sort(
       (a, b) =>
         Number(a.status === "completed") - Number(b.status === "completed") ||
-        { high: 3, medium: 2, low: 1 }[b.priority] -
-          { high: 3, medium: 2, low: 1 }[a.priority],
+        a.createdAt.localeCompare(b.createdAt),
     );
   const complaints = s!.complaints
     .filter((c) => c.reporterId === identity)
@@ -48,7 +46,6 @@ export function Jobs({ mine = false }: { mine?: boolean }) {
           {[
             [type, T, "Asset type", ["farm", "pond", "solar_system"]],
             [reason, R, "Reason", ["due", "complaint", "hazard"]],
-            [priority, P, "Priority", ["low", "medium", "high"]],
           ].map((entry) => {
             const [value, change, title, options] = entry as [
               string,
@@ -86,15 +83,15 @@ export function Jobs({ mine = false }: { mine?: boolean }) {
                 </a>
                 <small>
                   {s!.zones.find((z) => z.id === a.zoneId)?.name} ·{" "}
-                  {Array.from(
+                  {j.triggers.filter(t => t.kind === "due").map(t => t.dueDate + " · ")}{Array.from(
                     new Set(j.triggers.map((t) => labels[t.kind])),
                   ).join(" + ")}
                 </small>
               </div>
-              <Badge v={mine ? j.status : j.priority} />
+              <Badge v={j.status} />
               {j.status === "available" ? (
                 <button
-                  disabled={busy}
+                  disabled={busy || occupied}
                   onClick={async () => {
                     if (
                       await run(
@@ -105,21 +102,11 @@ export function Jobs({ mine = false }: { mine?: boolean }) {
                       go("/activity");
                   }}
                 >
-                  Claim job
+                  {occupied ? "Finish current inspection first" : "Claim job"}
                 </button>
               ) : j.status === "assigned" ? (
                 <>
-                  <button
-                    disabled={busy}
-                    onClick={() =>
-                      run(
-                        () => repo.releaseJob({ actorId: identity }, j.id),
-                        () => "Job released.",
-                      )
-                    }
-                  >
-                    Release
-                  </button>
+
                   <a className="button primary" href={"#/inspect/" + j.id}>
                     Inspect
                   </a>
@@ -138,6 +125,11 @@ export function Jobs({ mine = false }: { mine?: boolean }) {
           />
         )}
       </section>
+      {!mine && <section className="panel pad"><h2>Upcoming inspections</h2>
+        <p>Claims open 24 hours before the inspection date, at local midnight.</p>
+        {s!.assets.filter(a => !type || type === a.type).slice().sort((a,b) => a.nextInspectionDue.localeCompare(b.nextInspectionDue)).map(a =>
+          <div className="row" key={a.id}><a href={"#/assets/" + a.id}>{a.name}</a><time>{a.nextInspectionDue}</time></div>)}
+      </section>}
       {mine && (
         <section className="panel pad">
           <h2>My complaints</h2>
@@ -216,7 +208,7 @@ export function Inspect({ job }: { job: InspectionJob }) {
             <option value="" disabled>
               Select condition
             </option>
-            {["healthy", "needs_attention", "critical"].map((k) => (
+            {["healthy", "needs_attention"].map((k) => (
               <option key={k} value={k}>
                 {labels[k]}
               </option>

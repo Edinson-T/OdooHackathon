@@ -827,3 +827,11 @@ button:disabled {
     grid-template-columns: 1fr 1fr;
   }
 }
+
+.form select:has(option[value="pass"]:checked), .form option[value="pass"], .form select:has(option[value="healthy"]:checked), .form option[value="healthy"] {background-color:rgba(67,165,108,.22);}
+
+.form select:has(option[value="fail"]:checked), .form option[value="fail"] {background-color:rgba(220,70,70,.19);}
+
+.form select:has(option[value="not_applicable"]:checked), .form option[value="not_applicable"] {background-color:rgba(120,130,145,.19);}
+
+.form select:has(option[value="needs_attention"]:checked), .form option[value="needs_attention"] {background-color:rgba(236,165,49,.24);}

@@ -1,4 +1,5 @@
-import type { Snapshot, Asset, Complaint, HazardEvent } from "../domain/types";
+import { exceeds, fieldDate } from "../domain/warnings";
+import type { Snapshot, Asset, Complaint, HazardEvent, Reading } from "../domain/types";
 import type {
   Actor,
   AssetInput,
@@ -23,7 +24,7 @@ function permit(ok: boolean) {
   if (!ok)
     throw new Problem(
       "FORBIDDEN",
-      "This action belongs to another demo identity.",
+      "This action belongs to another account.",
     );
 }
 function state(ok: boolean, msg: string) {
@@ -46,12 +47,13 @@ async function result<T>(f: () => T): Promise<Result<T>> {
   }
 }
 function edit<T>(f: (s: Snapshot) => T) {
-  return result(() => {
+  const transaction = () => result(() => {
     const s = load();
     const out = f(s);
     save(s);
     return out;
   });
+  return navigator.locks.request("green-assets:write", transaction) as Promise<Result<T>>;
 }
 function validate(s: Snapshot, a: AssetInput) {
   const z = byId(s.zones, a.zoneId).bounds;
@@ -89,12 +91,16 @@ function impacts(s: Snapshot, e: HazardEvent) {
       s,
       byId(s.assets, id),
       { kind: "hazard", hazardEventId: e.id, key: "hazard:" + e.id + ":" + id },
-      e.type === "flooding" ? "high" : "medium",
       r,
     );
   return r;
 }
 export const repository = {
+  registerUser: (user: Snapshot["users"][number]) => edit(s => {
+    const existing = s.users.find(u => u.id === user.id);
+    if (existing) Object.assign(existing, user);
+    else s.users.push(user);
+  }),
   getSnapshot: () => result(load),
   resetDemo: () =>
     result(() => {
@@ -176,7 +182,6 @@ export const repository = {
           key: "complaint:" + complaint.id,
           complaintId: complaint.id,
         },
-        "medium",
         summary(),
       );
       return { complaint, job };
@@ -185,7 +190,7 @@ export const repository = {
     edit((s) => {
       check(realDate(date), "Invalid inspection date.");
       const r = summary();
-      for (const a of s.assets.filter((a) => a.nextInspectionDue <= date))
+      for (const a of s.assets.filter((a) => new Date(a.nextInspectionDue + "T00:00:00").getTime() <= Date.now() + 86400000))
         attach(
           s,
           a,
@@ -194,32 +199,31 @@ export const repository = {
             dueDate: a.nextInspectionDue,
             key: "due:" + a.id + ":" + a.nextInspectionDue,
           },
-          "low",
           r,
         );
       return r;
     }),
-  simulateHazard: (input: Pick<HazardEvent, "type" | "zoneId">) =>
-    edit((s) => {
-      byId(s.zones, input.zoneId);
-      check(
-        ["rainfall", "flooding"].includes(input.type),
-        "Invalid event type.",
-      );
-      const event: HazardEvent = {
-        ...input,
-        id: crypto.randomUUID(),
-        createdAt: now(),
-        simulated: true,
-        affectedAssetIds: s.assets
-          .filter((a) => a.zoneId === input.zoneId)
-          .map((a) => a.id),
-      };
+  recordReadings: (readings:Reading[]) => edit(s => {
+    for (const reading of readings) {
+      byId(s.zones,reading.zoneId);
+      check(["rainfall","flooding","disease"].includes(reading.type) && Number.isFinite(reading.value) && reading.value >= 0 &&
+        (reading.type !== "disease" || (Number.isFinite(reading.mosquitoes) && reading.mosquitoes! >= 0)), "Invalid sensor measurement.");
+      check(Number.isFinite(Date.parse(reading.observedAt)) && Date.parse(reading.observedAt) <= Date.now(), "Invalid measurement time.");
+      const day = fieldDate(reading.observedAt);
+      if(day !== fieldDate(now())) continue;
+      const previous = s.readings.find(r => r.zoneId === reading.zoneId && r.type === reading.type);
+      if(previous && Date.parse(previous.observedAt) >= Date.parse(reading.observedAt)) continue;
+      s.readings = s.readings.filter(r => r !== previous);
+      s.readings.push({...reading,observedAt:new Date(reading.observedAt).toISOString()});
+      if (!exceeds(reading)) continue;
+      const id = [reading.zoneId,reading.type,day].join(":");
+      if (s.hazardEvents.some(e=>e.id === id)) continue;
+      const event:HazardEvent = {id,type:reading.type,zoneId:reading.zoneId,createdAt:now(),simulated:false,
+        affectedAssetIds:s.assets.filter(a=>a.zoneId===reading.zoneId).map(a=>a.id)};
       s.hazardEvents.push(event);
-      return { event, result: impacts(s, event) };
-    }),
-  replayHazard: (id: string) =>
-    edit((s) => impacts(s, byId(s.hazardEvents, id))),
+      impacts(s,event);
+    }
+  }),
   claimJob: (actor: Actor, id: string) =>
     edit((s) => {
       byId(s.users, actor.actorId);
@@ -233,28 +237,13 @@ export const repository = {
           );
         return j;
       }
+      const eligible = j.triggers.some(trigger => trigger.kind !== "due" ||
+        new Date(trigger.dueDate + "T00:00:00").getTime() <= Date.now() + 86400000);
+      state(eligible, "Scheduled inspections open 24 hours before the due date.");
+      state(!s.jobs.some(other => other.status === "assigned" && other.assigneeId === actor.actorId), "Finish your current inspection before claiming another.");
       j.status = "assigned";
       j.assigneeId = actor.actorId;
       j.claimedAt = now();
-      return j;
-    }),
-  releaseJob: (actor: Actor, id: string) =>
-    edit((s) => {
-      const j = byId(s.jobs, id);
-      state(j.status === "assigned", "Only assigned work can be released.");
-      permit(j.assigneeId === actor.actorId);
-      const other = s.jobs.find(
-        (o) => o.assetId === j.assetId && o.status === "available",
-      );
-      if (other) {
-        j.triggers.push(...other.triggers);
-        if (other.priority === "high" || j.priority === "low")
-          j.priority = other.priority;
-        s.jobs = s.jobs.filter((o) => o !== other);
-      }
-      j.status = "available";
-      j.assigneeId = null;
-      j.claimedAt = null;
       return j;
     }),
   completeJob: (actor: Actor, id: string, input: CompletionInput) =>
@@ -276,9 +265,9 @@ export const repository = {
         "Answer every question and include at least one applicable check.",
       );
       check(
-        ["healthy", "needs_attention", "critical"].includes(input.condition) &&
+        ["healthy", "needs_attention"].includes(input.condition) &&
           !(answers.includes("fail") && input.condition === "healthy"),
-        "A failed check requires needs attention or critical condition.",
+        "A failed check requires the Needs inspection condition.",
       );
       const notes = input.notes.trim();
       check(

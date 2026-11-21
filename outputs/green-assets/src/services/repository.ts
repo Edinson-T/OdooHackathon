@@ -31,7 +31,7 @@ export type AssetPatch = Partial<Omit<AssetInput, "type">>;
 
 export type CompletionInput = {
   answers: Record<string, "pass" | "fail" | "not_applicable">;
-  condition: "healthy" | "needs_attention" | "critical";
+  condition: "healthy" | "needs_attention";
   notes: string;
   resolvedComplaintIds: string[];
 };

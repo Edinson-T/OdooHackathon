@@ -6,7 +6,7 @@ import {
   useRef,
   type ReactNode,
 } from "react";
-import type { Snapshot } from "../domain/types";
+import type { Snapshot, User } from "../domain/types";
 import type { Result } from "../services/repository";
 import { repository as repo } from "../services/localRepository";
 import { localDate } from "../lib/clock";
@@ -25,8 +25,6 @@ type Run = <T>(
 const Context = createContext<
   | (State & {
       run: Run;
-      switchUser: (id: string) => void;
-      reset: () => void;
       clear: () => void;
     })
   | null
@@ -34,10 +32,10 @@ const Context = createContext<
 export function useApp() {
   return useContext(Context)!;
 }
-export function Provider({ children }: { children: ReactNode }) {
+export function Provider({ children,user }: { children: ReactNode; user:User }) {
   const [v, set] = useReducer(
     (s: State, p: Partial<State>) => ({ ...s, ...p }),
-    { s: null, identity: "user-a", busy: false, message: "", error: "" },
+    { s: null, identity: user.id, busy: false, message: "", error: "" },
   );
   const lock = useRef(false);
   const run: Run = async (fn, success, schedule = false) => {
@@ -61,33 +59,31 @@ export function Provider({ children }: { children: ReactNode }) {
       }
       set({ s: loaded.data, message: success?.(r.data) || "" });
       return true;
+    } catch {
+      set({error:"Unable to update this workspace. Check browser storage permissions and retry."});
+      return false;
     } finally {
       lock.current = false;
       set({ busy: false });
     }
   };
   useEffect(() => {
-    void run(() => repo.createDueJobs(localDate()));
+    void run(() => repo.registerUser(user), undefined, true);
+    const update = () => void run(() => repo.createDueJobs(localDate()));
+    const timer = window.setInterval(update,60000);
+    const sync = async (event:StorageEvent) => {
+      if (event.key !== "green-assets:demo:v1") return;
+      const result = await repo.getSnapshot();
+      if (result.ok) set({s:result.data});
+    };
+    window.addEventListener("storage",sync);
+    return () => {clearInterval(timer); window.removeEventListener("storage",sync);};
   }, []);
-  async function reset() {
-    if (
-      confirm(
-        "Reset this demo? Your changes will be replaced with the original example records.",
-      )
-    ) {
-      if (await run(repo.resetDemo, () => "Demo restored.", true)) {
-        set({ identity: "user-a" });
-        location.hash = "/";
-      }
-    }
-  }
   return (
     <Context.Provider
       value={{
         ...v,
         run,
-        switchUser: (id) => set({ identity: id, error: "", message: "" }),
-        reset,
         clear: () => set({ error: "", message: "" }),
       }}
     >

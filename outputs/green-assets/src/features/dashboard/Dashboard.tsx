@@ -1,24 +1,44 @@
-import { useState } from "react";
+import { threshold,todayRain } from "../../domain/warnings";
+import {useEffect,useState} from "react";
+
 import {
   Layers3,
   ClipboardList,
   CalendarClock,
   MessageSquareWarning,
-  CloudRain,
-  CalendarCheck2,
-  RotateCcw,
 } from "lucide-react";
 import { useApp } from "../../app/provider";
 import { Registry } from "../assets/Registry";
 import { repository as repo } from "../../services/localRepository";
 import { localDate } from "../../lib/clock";
 import { go } from "../../components/ui";
-import type { HazardEvent } from "../../domain/types";
+import type { Reading } from "../../domain/types";
 export function Dashboard() {
-  const { s, busy, run } = useApp();
-  const [show, S] = useState(false),
-    [type, T] = useState<HazardEvent["type"]>("flooding"),
-    [zone, Z] = useState(s!.zones[0].id);
+  const { s, busy, run,identity } = useApp();
+  const [status,setStatus]=useState("");
+  const [type,setType]=useState<"flooding"|"disease">("flooding");
+  const zones=s!.zones;
+  async function refresh(signal?:AbortSignal) {
+    const results=await Promise.allSettled(zones.map(todayRain));
+    const rows:Reading[]=results.flatMap(r=>r.status==="fulfilled"?[r.value]:[]);
+    let failed=results.filter(r=>r.status==="rejected").length;
+    const feed=import.meta.env.VITE_SENSOR_FEED_URL;
+    if(feed) try {
+      const response=await fetch(feed,{signal});
+      if(!response.ok) throw Error();
+      const readings=await response.json() as Reading[];
+      rows.push(...readings.filter(r=>r.type==="flooding" || r.type==="disease"));
+    } catch {failed++;}
+    if(signal?.aborted)return;
+    const ok=rows.length && await run(()=>repo.recordReadings(rows));
+    setStatus((ok?"Readings updated.":"No readings updated.")+(failed?" Some sources are unavailable.":""));
+  }
+  useEffect(()=>{
+    const controller=new AbortController();
+    void refresh(controller.signal);
+    const timer=setInterval(()=>void refresh(controller.signal),15*60*1000);
+    return ()=>{controller.abort();clearInterval(timer);};
+  },[]);
   const stats = [
     {
       name: "Registered assets",
@@ -75,100 +95,20 @@ export function Dashboard() {
       </div>
       <Registry />
       <section className="panel pad">
-        <h2>Demo controls</h2>
-        <div className="actions">
-          <button
-            disabled={busy}
-            onClick={() =>
-              run(
-                () => repo.createDueJobs(localDate()),
-                (r) =>
-                  r.createdJobIds.length +
-                  " jobs created · " +
-                  r.updatedJobIds.length +
-                  " updated · " +
-                  r.skippedTriggerKeys.length +
-                  " already tracked.",
-              )
-            }
-          >
-            <CalendarCheck2 />
-            Check due inspections
-          </button>
-          <button onClick={() => S(!show)}>
-            <CloudRain />
-            Simulate hazardous event
-          </button>
-        </div>
-        {show && (
-          <form
-            className="form"
-            onSubmit={(e) => {
-              e.preventDefault();
-              void run(
-                () => repo.simulateHazard({ zoneId: zone, type }),
-                ({ event, result }) =>
-                  "Simulated " +
-                  type +
-                  " · " +
-                  event.affectedAssetIds.length +
-                  " affected assets · " +
-                  result.createdJobIds.length +
-                  " new jobs.",
-              );
-            }}
-          >
-            <label>
-              Simulated event
-              <select
-                value={type}
-                onChange={(e) => T(e.target.value as typeof type)}
-              >
-                <option value="flooding">Flooding</option>
-                <option value="rainfall">Rainfall</option>
-              </select>
-            </label>
-            <label>
-              Affected zone
-              <select value={zone} onChange={(e) => Z(e.target.value)}>
-                {s!.zones.map((z) => (
-                  <option key={z.id} value={z.id}>
-                    {z.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <button disabled={busy} className="primary">
-              Run simulation
-            </button>
-          </form>
-        )}
-        {s!.hazardEvents
-          .slice()
-          .reverse()
-          .map((e) => (
-            <div key={e.id} className="row">
-              <span>
-                Simulated {e.type} ·{" "}
-                {s!.zones.find((z) => z.id === e.zoneId)?.name} ·{" "}
-                {e.affectedAssetIds.length} assets
-              </span>
-              <button
-                disabled={busy}
-                onClick={() =>
-                  run(
-                    () => repo.replayHazard(e.id),
-                    (r) =>
-                      r.skippedTriggerKeys.length +
-                      " triggers already recorded.",
-                  )
-                }
-              >
-                <RotateCcw />
-                Replay event
-              </button>
-            </div>
-          ))}
+        <h2>Environmental readings</h2>
+        <p>Warnings appear above {threshold.rainfall} mm rain today or {threshold.flooding} m water level. Disease warnings require both microbial density above {threshold.disease} counts/mL and mosquito density above {threshold.mosquitoes} per trap-day.</p>
+        <button disabled={busy} onClick={()=>void refresh()}>Refresh readings</button><p role="status">{status}</p>
+        {s!.users.find(u=>u.id===identity)?.role==="admin" && <form className="form" onSubmit={e=>{
+          e.preventDefault(); const data=new FormData(e.currentTarget);
+          void run(()=>repo.recordReadings([{zoneId:String(data.get("zone")),type,value:Number(data.get("value")),mosquitoes:type==="disease"?Number(data.get("mosquitoes")):undefined,observedAt:new Date().toISOString()}]),()=>"Sensor reading recorded.");
+        }}>
+          <h3>Record a sensor measurement</h3>
+          <label>Station zone<select name="zone">{zones.map(z=><option key={z.id} value={z.id}>{z.name}</option>)}</select></label>
+          <label>Sensor<select value={type} onChange={e=>setType(e.target.value as typeof type)}><option value="flooding">Water level</option><option value="disease">Microbe and mosquito monitor</option></select></label>
+          <label>{type==="flooding"?"Water level (m)":"Microbial density (counts/mL)"}<input key={type} name="value" type="number" min="0" step="any" required/></label>
+          {type==="disease" && <label>Mosquitoes per trap-day<input name="mosquitoes" type="number" min="0" step="any" required/></label>}
+          <button disabled={busy}>Save measurement</button>
+        </form>}
       </section>
     </>
   );

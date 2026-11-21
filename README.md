@@ -1,6 +1,6 @@
 # OdooHackathon
 
-Shared repository for the Odoo Hackathon team. Business code will be added later.
+Shared repository for the Odoo Hackathon team. The [Green Assets application](outputs/green-assets/README.md) includes Google sign-in, asset maps, inspection jobs and environmental warnings.
 
 ## Team workflow
 
