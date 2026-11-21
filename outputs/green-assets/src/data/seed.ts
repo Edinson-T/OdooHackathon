@@ -48,9 +48,9 @@ export function seed(): Snapshot {
     schemaVersion: 1,
     zones,
     users: [
-      { id: "user-a", name: "Maya Chen", role: "community" },
+      { id: "user-a", name: "Fahad Ali", role: "community" },
       { id: "user-b", name: "Eli Reed", role: "community" },
-      { id: "admin-1", name: "Alex Moss", role: "admin" },
+      { id: "admin-1", name: "Frank", role: "admin" },
     ],
     assets: [],
     jobs: [],

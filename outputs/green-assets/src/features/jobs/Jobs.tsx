@@ -168,8 +168,11 @@ export function Inspect({ job }: { job: InspectionJob }) {
   const { s, identity, run, busy } = useApp();
   const a = s!.assets.find((x) => x.id === job.assetId)!;
   const [answers, setAnswers] = useState<Record<string, string>>({});
+  const [picked, setPicked] = useState<"" | "healthy" | "needs_attention">("");
   if (job.status !== "assigned" || job.assigneeId !== identity) return <Empty text="Only the person who claimed this job can fill in the checklist." />;
   const failed = Object.values(answers).includes("fail");
+  // Anything not done (a failed check) means the asset needs inspection, so that is chosen for the volunteer.
+  const condition = failed ? "needs_attention" : picked;
   const total = job.checklist.questions.length,
     answered = Object.keys(answers).length;
   return (
@@ -219,7 +222,7 @@ export function Inspect({ job }: { job: InspectionJob }) {
             <div className="choice">
               {(["healthy", "needs_attention"] as const).map((k) => (
                 <label key={k} className={"c-" + k}>
-                  <input type="radio" name="condition" value={k} required disabled={k === "healthy" && failed} />
+                  <input type="radio" name="condition" value={k} required checked={condition === k} disabled={k === "healthy" && failed} onChange={() => setPicked(k)} />
                   <span>
                     <b>{labels[k]}</b>
                     <small>{k === "healthy" ? "Everything looks fine." : "Something needs fixing or a follow-up."}</small>
@@ -227,7 +230,7 @@ export function Inspect({ job }: { job: InspectionJob }) {
                 </label>
               ))}
             </div>
-            {failed && <p className="hint">A failed check means the asset needs inspection.</p>}
+            {failed && <p className="hint">A check was not done, so the asset is marked as needing inspection.</p>}
           </fieldset>
           <label>
             Notes

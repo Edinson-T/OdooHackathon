@@ -14,7 +14,8 @@ export function Registry({ compact = false, standalone = false, hazards = false 
   const [q, Q] = useState(""),
     [kind, K] = useState(""),
     [condition, C] = useState(""),
-    [list, L] = useState(false);
+    [list, L] = useState(false),
+    [focus, F] = useState<string>();
   const assets = useMemo(
     () =>
       s!.assets.filter(
@@ -28,7 +29,7 @@ export function Registry({ compact = false, standalone = false, hazards = false 
       <div className="atlashead">
         <h2>{compact ? "Your area" : "Map"}</h2>
         <div className="seg" role="group" aria-label="View">
-          <button className={!list ? "on" : ""} onClick={() => L(false)} aria-pressed={!list}>
+          <button className={!list ? "on" : ""} onClick={() => { F(undefined); L(false); }} aria-pressed={!list}>
             <MapIcon size={14} /> Map
           </button>
           <button className={list ? "on" : ""} onClick={() => L(true)} aria-pressed={list}>
@@ -44,11 +45,21 @@ export function Registry({ compact = false, standalone = false, hazards = false 
                 <KindIcon kind={a.type} size={16} /> {a.name}
               </a>
               <Badge v={a.condition} />
+              <button
+                className="showonmap"
+                onClick={() => {
+                  F(a.id);
+                  L(false);
+                }}
+                aria-label={"Show " + a.name + " on the map"}
+              >
+                <MapPin size={14} /> Show on map
+              </button>
             </li>
           ))}
         </ul>
       ) : (
-        <AssetMap assets={assets} />
+        <AssetMap assets={assets} focusId={focus} />
       )}
       <div className="mapkey">
         {kinds.map((k) => (

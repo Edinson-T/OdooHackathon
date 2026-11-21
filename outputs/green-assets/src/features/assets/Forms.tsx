@@ -1,4 +1,5 @@
 import { PinPicker } from "./PinPicker";
+import { MiniMap } from "./MiniMap";
 import { useState, type FormEvent } from "react";
 import { ArrowLeft } from "lucide-react";
 import { useApp } from "../../app/provider";
@@ -250,6 +251,7 @@ export function Details({ id }: { id: string }) {
       <Sheet>
       <div className="assetbody">
         <aside className="card">
+          <MiniMap asset={a} zone={s!.zones.find((z) => z.id === a.zoneId)} />
           <dl className="facts">
             <div><dt>Next inspection</dt><dd className={late ? "late" : ""}>{dateText(a.nextInspectionDue)}{late && " · overdue"}</dd></div>
             <div><dt>Checked every</dt><dd>{a.inspectionIntervalDays} days</dd></div>

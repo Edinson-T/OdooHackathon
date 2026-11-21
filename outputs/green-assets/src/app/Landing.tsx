@@ -4,8 +4,8 @@ import type { User } from "../domain/types";
 import { Logo, SiteFooter } from "./SiteFooter";
 
 const roles = {
-  member: { id: "user-a", name: "Maya Chen", role: "community" } as User,
-  admin: { id: "admin-1", name: "Alex Moss", role: "admin" } as User,
+  member: { id: "user-a", name: "Fahad Ali", role: "community" } as User,
+  admin: { id: "admin-1", name: "Frank", role: "admin" } as User,
 };
 
 
@@ -224,12 +224,12 @@ export function Landing({ google, error, onDemo }: { google: (() => void) | null
             <button className="lp-role" onClick={() => enter(roles.member)}>
               <b>Community member</b>
               <span>Report problems, claim inspections and record what you find.</span>
-              <small>Continue as Maya Chen</small>
+              <small>Continue as Fahad Ali</small>
             </button>
             <button className="lp-role" onClick={() => enter(roles.admin)}>
               <b>Community administrator</b>
               <span>Everything above, plus managing assets and sensor readings.</span>
-              <small>Continue as Alex Moss</small>
+              <small>Continue as Frank</small>
             </button>
           </>
         )}

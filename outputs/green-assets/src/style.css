@@ -247,6 +247,17 @@ input:disabled, select:disabled { background: var(--green-softer); color: var(--
 .maplist { list-style: none; margin: 0; padding: 6px 16px; overflow: auto; background: var(--green-softer); }
 .maplist li { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--line); }
 .maplist a { display: inline-flex; gap: 8px; align-items: center; }
+.maplist li { gap: 12px; }
+.maplist li > a { flex: 1; min-width: 0; }
+.showonmap { all: unset; cursor: pointer; display: inline-flex; align-items: center; gap: 5px; font-size: .84rem; font-weight: 600; color: var(--forest); padding: 5px 9px; border-radius: 7px; border: 1px solid var(--line-2); background: var(--white); white-space: nowrap; }
+.showonmap:hover { border-color: var(--forest); }
+.showonmap:focus-visible { outline: 2px solid var(--botanical); outline-offset: 2px; }
+.pin.focused { transform: scale(1.35); z-index: 1000 !important; box-shadow: 0 0 0 3px #fff, 0 0 0 6px var(--fig-deep), 0 6px 14px rgb(36 35 58 / .35); }
+.pin.big { box-shadow: 0 0 0 3px var(--ring, var(--line-2)), 0 4px 10px rgb(36 35 58 / .3); }
+.minimap { margin: 0 0 18px; }
+.minimapcanvas { height: 210px; border-radius: var(--r); overflow: hidden; border: 1px solid var(--line); background: var(--green-soft); z-index: 0; }
+.minimap figcaption { display: flex; justify-content: space-between; gap: 8px; margin-top: 8px; font-size: .84rem; color: var(--muted); }
+.minimap figcaption a { color: var(--forest); font-weight: 600; }
 .mapkey { display: flex; flex-wrap: wrap; gap: 8px 18px; margin-top: 14px; font-size: .84rem; color: var(--ink-2); font-weight: 600; }
 .mapkey span { display: inline-flex; align-items: center; gap: 7px; }
 .mapkey .keyring { color: var(--muted); font-weight: 400; margin-left: auto; }
