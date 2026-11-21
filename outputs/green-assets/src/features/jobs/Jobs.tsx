@@ -12,12 +12,17 @@ import {
 } from "../../components/ui";
 import type { InspectionJob } from "../../domain/types";
 import { localDate } from "../../lib/clock";
+import { riskOf } from "../../domain/risk";
+import { RiskBadge } from "../../components/RiskBadge";
 import type { CompletionInput } from "../../services/repository";
 export function Jobs({ mine = false }: { mine?: boolean }) {
   const { s, identity, busy, run } = useApp();
   const [type, T] = useState(""),
     [reason, R] = useState("");
   const occupied = s!.jobs.some(j => j.status === "assigned" && j.assigneeId === identity);
+  const today = localDate();
+  const risks = new Map(s!.assets.map((a) => [a.id, riskOf(s!, a, today)]));
+  const scoreOf = (assetId: string) => risks.get(assetId)?.score ?? 0;
   const jobs = s!.jobs
     .filter(
       (j) =>
@@ -25,9 +30,11 @@ export function Jobs({ mine = false }: { mine?: boolean }) {
         (!type || s!.assets.find((a) => a.id === j.assetId)?.type === type) &&
         (!reason || j.triggers.some((t) => t.kind === reason)),
     )
+    // Open work first, the asset with the highest priority score on top.
     .sort(
       (a, b) =>
         Number(a.status === "completed") - Number(b.status === "completed") ||
+        scoreOf(b.assetId) - scoreOf(a.assetId) ||
         a.createdAt.localeCompare(b.createdAt),
     );
   const complaints = s!.complaints
@@ -40,7 +47,7 @@ export function Jobs({ mine = false }: { mine?: boolean }) {
       <p className="lede">
         {mine
           ? "Your inspections and reported issues."
-          : "Claim an available job to inspect a community asset."}
+          : "Claim an available job to inspect a community asset. Jobs are listed by priority score, highest first."}
       </p>
       <section className="panel pad">
         <h2>{mine ? "My inspections" : "Available jobs"}</h2>
@@ -89,6 +96,7 @@ export function Jobs({ mine = false }: { mine?: boolean }) {
                   {reasons(s!, j.triggers).join(" + ")}
                 </small>
               </div>
+              {j.status !== "completed" && <RiskBadge risk={risks.get(a.id)!} />}
               <Badge v={j.status} />
               {j.status === "available" ? (
                 <button

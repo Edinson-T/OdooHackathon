@@ -37,3 +37,7 @@ The same seed gives the same days on every device.
 ## Running the field demo
 
 Admins place asset pins inside the selected zone. Members filter reports by asset category and claim one inspection at a time. Records persist in this browser. See [PRD](PRD.md) for the user workflow, [architecture](ARCHITECTURE.md) for deployment boundaries, [API](API.md) for sensor integration, [database](DATABASE.md) for stored records and [decisions](ADR.md) for scheduling and alert assumptions.
+
+## Inspection priority
+
+Each asset has a priority score out of 100 that decides which to inspect first. The jobs list is sorted by it, and the asset page shows the four parts with the reason for each. It is not a forecast of disease. The numbers in `src/domain/riskConfig.ts` are placeholders and have not been validated.

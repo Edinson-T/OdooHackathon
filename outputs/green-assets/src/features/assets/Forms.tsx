@@ -14,6 +14,9 @@ import { activeEvents, alertTitle } from "../../domain/warnings";
 import { repository as repo } from "../../services/localRepository";
 import type { Asset, AssetType } from "../../domain/types";
 import { localDate } from "../../lib/clock";
+import { riskOf } from "../../domain/risk";
+import { riskConfig } from "../../domain/riskConfig";
+import { RiskBadge } from "../../components/RiskBadge";
 export function Report({ assetId }: { assetId?: string }) {
   const { s, identity, run, busy } = useApp();
   const [asset, A] = useState(assetId || s!.assets[0].id),
@@ -207,6 +210,7 @@ export function Details({ id }: { id: string }) {
   const { s, identity } = useApp();
   const a = s!.assets.find((a) => a.id === id);
   if (!a) return <Empty text="Asset not found." />;
+  const risk = riskOf(s!, a, localDate());
   const complaints = s!.complaints.filter((c) => c.assetId === id),
     jobs = s!.jobs.filter((j) => j.assetId === id).reverse();
   return (
@@ -259,6 +263,51 @@ export function Details({ id }: { id: string }) {
         {s!.users.find((u) => u.id === identity)?.role === "admin" && (
           <a href={"#/admin/" + id}>Edit asset</a>
         )}
+      </section>
+      <section className="panel pad">
+        <div className="row">
+          <h2>Inspection priority</h2>
+          <RiskBadge risk={risk} />
+        </div>
+        <p className="subtle">
+          A way to decide which asset to inspect first. It is not a forecast of
+          disease. The numbers are placeholders chosen by the team and have not
+          been validated.
+        </p>
+        <div className="tablewrap">
+          <table className="risktable">
+            <thead>
+              <tr>
+                <th>Part</th>
+                <th>Points</th>
+                <th>Why</th>
+              </tr>
+            </thead>
+            <tbody>
+              {risk.parts.map((p) => (
+                <tr key={p.key}>
+                  <td>{p.name}</td>
+                  <td>
+                    {p.points} of {p.max}
+                  </td>
+                  <td>{p.reason}</td>
+                </tr>
+              ))}
+              <tr>
+                <td>
+                  <b>Total</b>
+                </td>
+                <td>
+                  <b>{risk.score} of 100</b>
+                </td>
+                <td>
+                  Inspect first from {riskConfig.levels.inspectFirst}, this week from{" "}
+                  {riskConfig.levels.thisWeek}, routine below that.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </section>
       <section className="panel pad">
         <h2>Complaints</h2>
