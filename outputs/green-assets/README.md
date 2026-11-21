@@ -27,10 +27,10 @@ The overview shows three alerts for each zone: heavy rain, high temperature, and
 
 The simulated scenario is the default data source for every account, and any member can run it. An administrator can switch to live weather from Open-Meteo instead. To present the scenario:
 
-1. Open the overview. Days 1 to 5 are calm and there are no jobs, so this is the moment to show a member reporting a problem by hand.
+1. Open the overview. Days 1 to 5 are calm and there are no jobs, so this is the moment to show a member reporting a problem by hand. **Check due inspections** on the jobs page then turns the two seeded inspections that are due into jobs.
 2. Press **Play**, **Next day** or a later day on the strip. Day 6 turns hot and dengue is reported in the river basin. Day 7 adds a storm, so that zone shows all three alerts at once. Day 8 is the first day after the rain.
 3. **Trigger** brings a storm, a heatwave or a dengue report to a chosen zone today.
-4. **Restart** returns to day 1 and deletes every job the scenario created. Problems that members reported by hand stay.
+4. **Restart** returns to day 1 and deletes every job the scenario created. Problems that members reported by hand stay, and due inspections wait for the check again.
 
 The same seed gives the same days on every device.
 

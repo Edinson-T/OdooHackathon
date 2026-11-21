@@ -11,6 +11,7 @@ import {
   reasons,
 } from "../../components/ui";
 import type { InspectionJob } from "../../domain/types";
+import { localDate } from "../../lib/clock";
 import type { CompletionInput } from "../../services/repository";
 export function Jobs({ mine = false }: { mine?: boolean }) {
   const { s, identity, busy, run } = useApp();
@@ -127,6 +128,27 @@ export function Jobs({ mine = false }: { mine?: boolean }) {
       </section>
       {!mine && <section className="panel pad"><h2>Upcoming inspections</h2>
         <p>Claims open 24 hours before the inspection date, at local midnight.</p>
+        {!s!.dueChecks && (
+          <div className="actions">
+            <button
+              disabled={busy}
+              onClick={() =>
+                void run(
+                  () => repo.createDueJobs(localDate(), true),
+                  (r) =>
+                    r.createdJobIds.length + r.updatedJobIds.length
+                      ? "Inspections that are due are now jobs."
+                      : "No inspection is due yet.",
+                )
+              }
+            >
+              Check due inspections
+            </button>
+            <span className="subtle">
+              Inspections that are due become jobs once this check has run.
+            </span>
+          </div>
+        )}
         {s!.assets.filter(a => !type || type === a.type).slice().sort((a,b) => a.nextInspectionDue.localeCompare(b.nextInspectionDue)).map(a =>
           <div className="row" key={a.id}><a href={"#/assets/" + a.id}>{a.name}</a><time>{a.nextInspectionDue}</time></div>)}
       </section>}

@@ -279,10 +279,15 @@ export const repository = {
       );
       return { complaint, job };
     }),
-  createDueJobs: (date: string) =>
+  // Turns inspections that are due into jobs. It does nothing until someone
+  // has asked for the check once (`start`), so a new workspace opens with no
+  // jobs. After that it runs by itself, as before.
+  createDueJobs: (date: string, start = false) =>
     edit((s) => {
       check(realDate(date), "Invalid inspection date.");
       const r = summary();
+      if (start) s.dueChecks = true;
+      if (!s.dueChecks) return r;
       for (const a of s.assets.filter((a) => new Date(a.nextInspectionDue + "T00:00:00").getTime() <= Date.now() + 86400000))
         attach(
           s,
@@ -401,6 +406,12 @@ export const repository = {
       );
       endWarnings(s);
       withdrawSimulated(s);
+      // Scheduled inspections nobody claimed go back to waiting for the check.
+      s.dueChecks = false;
+      for (const j of s.jobs)
+        if (j.status === "available")
+          j.triggers = j.triggers.filter((t) => t.kind !== "due");
+      s.jobs = s.jobs.filter((j) => j.triggers.length > 0);
       s.scenario = { ...newScenario(seed ?? s.scenario.seed), mode: "simulated" };
       runScenario(s);
       return s.scenario;

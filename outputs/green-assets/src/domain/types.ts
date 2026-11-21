@@ -116,5 +116,8 @@ export interface Snapshot {
   readings: Reading[];
   hazardEvents: HazardEvent[];
   scenario: Scenario;
+  // Scheduled inspections become jobs only after someone asks for the check,
+  // so a new workspace opens with an empty job list.
+  dueChecks: boolean;
   healthNotices: Id[]; // Zones with a public health notice in effect.
 }

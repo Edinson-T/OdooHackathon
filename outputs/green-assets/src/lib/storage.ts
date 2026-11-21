@@ -128,6 +128,7 @@ const format = z.object({
       triggered: z.array(z.object({ zoneId: id, day: whole, kind: hazard })),
     })
     .default(newScenario),
+  dueChecks: z.boolean().default(false),
   healthNotices: z.array(id).default([]),
 });
 // Records saved by earlier versions. Readings and alerts of types that no

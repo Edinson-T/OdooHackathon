@@ -58,6 +58,7 @@ export function seed(): Snapshot {
     readings: [],
     hazardEvents: [],
     scenario: newScenario(),
+    dueChecks: false,
     healthNotices: [],
   };
   names.forEach((name, i) => {
@@ -76,8 +77,7 @@ export function seed(): Snapshot {
         4.33 + [0.019, 0.052, 0.094, 0.122][i % 4] + (i > 3 ? 0.002 : 0),
       condition,
       inspectionIntervalDays: 30,
-      // Every inspection is due later, so a new workspace starts with no jobs.
-      nextInspectionDue: localDate(18 + i),
+      nextInspectionDue: localDate(i === 2 ? -3 : i === 7 ? 0 : 18 + i),
       createdAt: localDate(-42) + "T10:00:00Z",
       lastInspectedAt: condition === "unknown" ? null : date,
     });
