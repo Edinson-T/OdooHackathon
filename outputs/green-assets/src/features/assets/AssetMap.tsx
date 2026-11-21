@@ -18,14 +18,6 @@ export function AssetMap({ assets }: { assets: Asset[] }) {
     const bounds = L.latLngBounds([50.85, 4.33], [50.91, 4.47]);
     map.fitBounds(bounds, { padding: [8, 10] });
     L.control.zoom({ position: "topright" }).addTo(map);
-    const land = L.imageOverlay(
-      "./landscape.png",
-      [
-        [50.82, 4.1],
-        [50.94, 4.7],
-      ],
-      { attribution: "Green Assets · illustrated zone map" },
-    ).addTo(map);
     const street = L.tileLayer(
       "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
       {
@@ -34,17 +26,7 @@ export function AssetMap({ assets }: { assets: Asset[] }) {
           '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
       },
     );
-    street.once("tileerror", () => {
-      map.removeLayer(street);
-      land.addTo(map);
-    });
-    L.control
-      .layers(
-        { "Field map": land, "Street map": street },
-        {},
-        { position: "topright" },
-      )
-      .addTo(map);
+    street.addTo(map);
     s.zones.forEach((z) => {
       for(const type of ["rainfall","flooding","disease"] as const) {
         const r=s.readings.find(r=>r.zoneId===z.id && r.type===type && fieldDate(r.observedAt)===fieldDate(new Date().toISOString()));
@@ -53,30 +35,6 @@ export function AssetMap({ assets }: { assets: Asset[] }) {
         const label=name+(warning ? " warning" : " station")+(r ? " · "+r.value+" "+({rainfall:"mm",flooding:"m",disease:"counts/mL"}[type])+(type==="disease" ? ", "+r.mosquitoes+" mosquitoes/trap-day":"") : " · awaiting data");
         L.circleMarker(station(z,type),{radius:warning?11:6,color:warning?"#b43225":"#416478",fillOpacity:0.85}).bindTooltip(label,{permanent:!!warning}).addTo(map);
       }
-      const b = z.bounds;
-      L.rectangle(
-        [
-          [b.south, b.west],
-          [b.north, b.east],
-        ],
-        {
-          color: "#607c56",
-          weight: 1,
-          dashArray: "4 7",
-          fillColor: "#b4cda9",
-          fillOpacity: 0.08,
-          interactive: false,
-        },
-      ).addTo(map);
-      L.marker([b.north - 0.001, (b.west + b.east) / 2], {
-        icon: L.divIcon({
-          className: "zone-label",
-          html: z.name.toUpperCase(),
-          iconSize: [140, 16],
-          iconAnchor: [70, 8],
-        }),
-        interactive: false,
-      }).addTo(map);
     });
     assets.forEach((a) => {
       const marker = L.marker([a.latitude, a.longitude], {

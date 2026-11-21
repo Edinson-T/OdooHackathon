@@ -1,7 +1,6 @@
 import { useMemo, useState } from "react";
 import {
   Search,
-  MapPin,
   SlidersHorizontal,
   Map as MapIcon,
   Table2,
@@ -71,10 +70,6 @@ export function Registry() {
               {labels[k]}
             </span>
           ))}
-          <span className="zones">
-            <MapPin size={14} />
-            {s!.zones.length} zones
-          </span>
         </div>
       </section>
       <section className="panel">

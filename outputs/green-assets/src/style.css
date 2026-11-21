@@ -436,16 +436,6 @@ small,
 .legend i.solar_system {
   background: #b88331;
 }
-.zone-label {
-  text-align: center;
-  color: #465a42;
-  font: bold 10px/1.4 Verdana;
-  letter-spacing: 1.8px;
-  white-space: nowrap;
-  text-shadow:
-    0 0 3px white,
-    0 0 5px white;
-}
 .leaflet-control-attribution {
   font-size: 9px !important;
 }
@@ -464,10 +454,6 @@ small,
   width: 8px;
   height: 8px;
   border-radius: 50%;
-}
-.legend .zones {
-  margin-left: auto;
-  color: #637462;
 }
 .filters,
 .actions {

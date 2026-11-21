@@ -10,12 +10,11 @@ export function PinPicker(props: {bounds: Zone["bounds"]; latitude:number; longi
     const area = L.latLngBounds([b.south,b.west],[b.north,b.east]);
     const map = L.map(element.current!).fitBounds(area);
     L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png",{attribution:'© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'}).addTo(map);
-    L.rectangle(area,{weight:1,interactive:false}).addTo(map);
     const pin = L.circleMarker([latitude,longitude],{radius:8,fillOpacity:1}).addTo(map);
     map.on("click", e => {
       if (area.contains(e.latlng)) {pin.setLatLng(e.latlng); onPick(e.latlng.lat,e.latlng.lng);}
     });
     return () => {map.remove();};
   },[]);
-  return <section><p>Click inside the outlined zone to place the asset pin.</p><div ref={element} style={{height:280}} aria-label="Choose asset location" /></section>;
+  return <section><p>Click a location within the selected zone to place the asset pin.</p><div ref={element} style={{height:280}} aria-label="Choose asset location" /></section>;
 }
