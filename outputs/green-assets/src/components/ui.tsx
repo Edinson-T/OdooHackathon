@@ -8,7 +8,7 @@ export const labels: Record<string, string> = {
   healthy: "Healthy",
   needs_attention: "Needs inspection",
   critical: "Critical",
-  unknown: "Unknown",
+  unknown: "Not inspected yet",
   available: "Available",
   assigned: "Assigned",
   completed: "Completed",
