@@ -1,25 +1,15 @@
 import { useMemo, useState } from "react";
-import {
-  Search,
-  MapPin,
-  SlidersHorizontal,
-  Map as MapIcon,
-  Table2,
-} from "lucide-react";
+import { Search, Map as MapIcon, List, MapPin } from "lucide-react";
 import { useApp } from "../../app/provider";
-import {
-  KindIcon,
-  Badge,
-  Empty,
-  go,
-  labels,
-  dateText,
-} from "../../components/ui";
+import { KindIcon, Badge, Empty, go, labels, dateText, Band, Sheet } from "../../components/ui";
 import { AssetMap } from "./AssetMap";
-import { HazardPanel } from "../hazards/HazardPanel";
 import { localDate } from "../../lib/clock";
-// `hazards` puts the warnings and readings between the map and the table.
-export function Registry({ hazards = false }: { hazards?: boolean }) {
+import { HazardPanel } from "../hazards/HazardPanel";
+
+const kinds = ["farm", "pond", "solar_system"] as const;
+
+// `hazards` puts the alerts panel between the map and the table.
+export function Registry({ compact = false, standalone = false, hazards = false }: { compact?: boolean; standalone?: boolean; hazards?: boolean }) {
   const { s } = useApp();
   const [q, Q] = useState(""),
     [kind, K] = useState(""),
@@ -28,158 +18,148 @@ export function Registry({ hazards = false }: { hazards?: boolean }) {
   const assets = useMemo(
     () =>
       s!.assets.filter(
-        (a) =>
-          (!kind || a.type === kind) &&
-          (!condition || a.condition === condition) &&
-          a.name.toLowerCase().includes(q.toLowerCase()),
+        (a) => (!kind || a.type === kind) && (!condition || a.condition === condition) && a.name.toLowerCase().includes(q.toLowerCase()),
       ),
     [s, q, kind, condition],
   );
-  return (
-    <>
-      <section className="panel atlas">
-        <div className="panelhead">
-          <div>
-            <div className="eyebrow">COMMUNITY ATLAS</div>
-            <h2>Asset map</h2>
-          </div>
-          <div className="switch">
-            <button className={!list ? "sel" : ""} onClick={() => L(false)}>
-              <MapIcon size={15} />
-              Map
-            </button>
-            <button className={list ? "sel" : ""} onClick={() => L(true)}>
-              <Table2 size={15} />
-              List
-            </button>
-          </div>
+  const today = localDate();
+  const atlas = (
+    <section className={"atlas" + (compact ? " compact" : "")}>
+      <div className="atlashead">
+        <h2>{compact ? "Your area" : "Map"}</h2>
+        <div className="seg" role="group" aria-label="View">
+          <button className={!list ? "on" : ""} onClick={() => L(false)} aria-pressed={!list}>
+            <MapIcon size={14} /> Map
+          </button>
+          <button className={list ? "on" : ""} onClick={() => L(true)} aria-pressed={list}>
+            <List size={14} /> List
+          </button>
         </div>
-        {list ? (
-          <div className="maplist">
-            {assets.map((a) => (
-              <a key={a.id} href={"#/assets/" + a.id}>
-                <KindIcon kind={a.type} />
-                {a.name}
+      </div>
+      {list ? (
+        <ul className="maplist">
+          {assets.map((a) => (
+            <li key={a.id}>
+              <a href={"#/assets/" + a.id}>
+                <KindIcon kind={a.type} size={16} /> {a.name}
               </a>
-            ))}
-          </div>
-        ) : (
-          <AssetMap assets={assets} />
-        )}
-        <div className="legend">
-          {["farm", "pond", "solar_system"].map((k) => (
-            <span key={k}>
-              <i className={k} />
-              {labels[k]}
-            </span>
+              <Badge v={a.condition} />
+            </li>
           ))}
-          <span>
-            <i className="zonekey" />
-            Zone with an alert
+        </ul>
+      ) : (
+        <AssetMap assets={assets} />
+      )}
+      <div className="mapkey">
+        {kinds.map((k) => (
+          <span key={k}>
+            <i className={"swatch " + k} />
+            {labels[k]}
           </span>
-          {(["rainfall", "heat", "dengue"] as const).map((k) => (
-            <span key={k} className={"zone-chip " + k}>
-              {{ rainfall: "Rain", heat: "Heat", dengue: "Dengue" }[k]}
-            </span>
-          ))}
-          {s!.scenario.mode === "simulated" && (
-            <span className="simtag">SIMULATED DATA</span>
-          )}
-          <span className="zones">
-            <MapPin size={14} />
-            {s!.zones.length} zones
+        ))}
+        <span>
+          <i className="zonekey" /> Zone with an alert
+        </span>
+        {(["rainfall", "heat", "dengue"] as const).map((k) => (
+          <span key={k} className={"zone-chip " + k}>
+            {{ rainfall: "Rain", heat: "Heat", dengue: "Dengue" }[k]}
           </span>
-        </div>
-      </section>
+        ))}
+        {s!.scenario.mode === "simulated" && <span className="simtag">Simulated data</span>}
+        <span className="keyring">
+          <MapPin size={13} /> {s!.zones.length} zones · ring colour shows the last condition
+        </span>
+      </div>
+    </section>
+  );
+  if (compact) return atlas;
+  const resetFilters = () => {
+    Q("");
+    K("");
+    C("");
+  };
+  const body = (
+    <>
+      <div className="card">{atlas}</div>
       {hazards && <HazardPanel />}
-      <section className="panel">
-        <div className="panelhead">
-          <div>
-            <div className="eyebrow">FIELD RECORDS</div>
-            <h2>Asset registry</h2>
-          </div>
-          <span className="subtle">{assets.length} assets</span>
-        </div>
-        <div className="filters">
+      <section className="card registry">
+        <div className="toolbar">
           <label className="search">
             <Search size={16} />
-            <input
-              placeholder="Search assets…"
-              aria-label="Search assets"
-              value={q}
-              onChange={(e) => Q(e.target.value)}
-            />
+            <input placeholder="Search assets" aria-label="Search assets" value={q} onChange={(e) => Q(e.target.value)} />
           </label>
-          <SlidersHorizontal size={16} />
-          <select
-            aria-label="Filter by type"
-            value={kind}
-            onChange={(e) => K(e.target.value)}
-          >
+          <select aria-label="Asset type" value={kind} onChange={(e) => K(e.target.value)}>
             <option value="">All types</option>
-            {["farm", "pond", "solar_system"].map((k) => (
-              <option value={k} key={k}>
-                {labels[k]}
-              </option>
+            {kinds.map((k) => (
+              <option value={k} key={k}>{labels[k]}</option>
             ))}
           </select>
-          <select
-            aria-label="Filter by condition"
-            value={condition}
-            onChange={(e) => C(e.target.value)}
-          >
-            <option value="">All conditions</option>
+          <select aria-label="Condition" value={condition} onChange={(e) => C(e.target.value)}>
+            <option value="">Any condition</option>
             {["healthy", "needs_attention", "critical", "unknown"].map((k) => (
-              <option value={k} key={k}>
-                {labels[k]}
-              </option>
+              <option value={k} key={k}>{labels[k]}</option>
             ))}
           </select>
+          {(q || kind || condition) && (
+            <button className="linkbtn" onClick={resetFilters}>
+              Clear
+            </button>
+          )}
+          <span className="count">
+            {assets.length} of {s!.assets.length}
+          </span>
         </div>
         <div className="tablewrap">
-          <table>
+          <table className="data assets">
             <thead>
               <tr>
-                <th>Asset name</th>
+                <th>Asset</th>
                 <th>Zone</th>
                 <th>Condition</th>
-                <th>Next inspection</th>
+                <th>Last visit</th>
+                <th className="r">Next inspection</th>
               </tr>
             </thead>
             <tbody>
-              {assets.map((a) => (
-                <tr key={a.id}>
-                  <td>
-                    <button
-                      className="assetname"
-                      onClick={() => go("/assets/" + a.id)}
-                    >
-                      <span className={"kindbox " + a.type}>
-                        <KindIcon kind={a.type} />
-                      </span>
-                      <span>
-                        {a.name}
-                        <small>{labels[a.type]}</small>
-                      </span>
-                    </button>
-                  </td>
-                  <td>{s!.zones.find((z) => z.id === a.zoneId)?.name}</td>
-                  <td>
-                    <Badge v={a.condition} />
-                  </td>
-                  <td
-                    className={a.nextInspectionDue < localDate() ? "late" : ""}
-                  >
-                    {a.nextInspectionDue < localDate() ? "Overdue · " : ""}
-                    {dateText(a.nextInspectionDue)}
-                  </td>
-                </tr>
-              ))}
+              {assets.map((a) => {
+                const late = a.nextInspectionDue < today;
+                return (
+                  <tr key={a.id} onClick={() => go("/assets/" + a.id)} className="clickrow">
+                    <td>
+                      <a className="assetcell" href={"#/assets/" + a.id} onClick={(e) => e.stopPropagation()}>
+                        <span className={"kind " + a.type}>
+                          <KindIcon kind={a.type} size={16} />
+                        </span>
+                        <span>
+                          <b>{a.name}</b>
+                          <small>{labels[a.type]}</small>
+                        </span>
+                      </a>
+                    </td>
+                    <td className="muted">{s!.zones.find((z) => z.id === a.zoneId)?.name}</td>
+                    <td>
+                      <Badge v={a.condition} />
+                    </td>
+                    <td className="muted">{a.lastInspectedAt ? dateText(a.lastInspectedAt) : "Never"}</td>
+                    <td className={"r" + (late ? " late" : "")}>
+                      {late && <span className="overdue">Overdue</span>}
+                      {dateText(a.nextInspectionDue)}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
-        {!assets.length && <Empty text="No assets match these filters." />}
+        {!assets.length && <Empty text="No assets match." hint="Try another type or clear the search." />}
       </section>
+    </>
+  );
+  if (!standalone) return body;
+  return (
+    <>
+      <Band title="Every green space, " accent="in one place" after="." text={`The ${s!.assets.length} farms, ponds and solar systems we look after. Select one to see its history or report a problem.`} />
+      <Sheet>{body}</Sheet>
     </>
   );
 }

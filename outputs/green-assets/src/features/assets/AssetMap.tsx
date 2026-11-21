@@ -35,6 +35,7 @@ export function AssetMap({ assets }: { assets: Asset[] }) {
     const street = L.tileLayer(
       "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
       {
+        className: "quiet-tiles",
         maxZoom: 19,
         attribution:
           '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
@@ -64,17 +65,17 @@ export function AssetMap({ assets }: { assets: Asset[] }) {
         ],
         here.length
           ? {
-              color: "#c81e1e",
+              color: "#c0503a",
               weight: 4,
-              fillColor: "#c81e1e",
+              fillColor: "#c0503a",
               fillOpacity: 0.07,
               interactive: false,
             }
           : {
-              color: "#607c56",
+              color: "#527B55",
               weight: 1,
               dashArray: "4 7",
-              fillColor: "#b4cda9",
+              fillColor: "#A8C5A0",
               fillOpacity: 0.08,
               interactive: false,
             },
@@ -108,10 +109,10 @@ export function AssetMap({ assets }: { assets: Asset[] }) {
         title: a.name,
         alt: a.name,
         icon: L.divIcon({
-          className: "pin " + a.type,
-          html: renderToStaticMarkup(<KindIcon kind={a.type} size={15} />),
-          iconSize: [29, 29],
-          iconAnchor: [14, 24],
+          className: "pin " + a.type + " c-" + a.condition,
+          html: renderToStaticMarkup(<KindIcon kind={a.type} size={13} />),
+          iconSize: [26, 26],
+          iconAnchor: [13, 13],
         }),
       }).addTo(map);
       const label = document.createElement("span");
