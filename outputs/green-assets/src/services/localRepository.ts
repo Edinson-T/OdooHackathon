@@ -98,9 +98,6 @@ function validate(s: Snapshot, a: AssetInput, existing?: Asset) {
     "Coordinates must be inside the selected zone.",
   );
 }
-function admin(s: Snapshot, actor: Actor) {
-  permit(byId(s.users, actor.actorId).role === "admin");
-}
 // Gives the zone's assets of the named types an inspection trigger for an alert.
 function dispatch(s: Snapshot, event: HazardEvent, types: string[], stage: string) {
   const result = summary();
@@ -350,7 +347,8 @@ export const repository = {
   // mode that is left, because their readings no longer apply.
   setMonitoring: (actor: Actor, mode: Scenario["mode"]) =>
     edit((s) => {
-      admin(s, actor);
+      // Any member may switch, not only an admin: it only changes the demo's weather source.
+      byId(s.users, actor.actorId);
       check(
         mode === "live" || mode === "simulated",
         "Choose live sources or the simulated scenario.",

@@ -50,7 +50,6 @@ export function HazardPanel() {
   const snapshot = s!;
   const { zones, scenario } = snapshot;
   const actor = { actorId: identity };
-  const isAdmin = snapshot.users.find((u) => u.id === identity)?.role === "admin";
   const live = scenario.mode === "live";
   const [status, setStatus] = useState("");
   const [zone, setZone] = useState(zones[0]?.id ?? "");
@@ -130,11 +129,9 @@ export function HazardPanel() {
           values for this demo and have not been validated. The dengue feed is
           simulated: this app does not detect or forecast disease.
         </p>
-        {/* Every member can run the scenario. Only an admin changes the data source. */}
-        {(isAdmin || !live) && (
+        {/* Everyone, member or admin, can change the data source and run the scenario. */}
           <div className="hazardtools">
             <div className="actions">
-              {isAdmin && (
                 <div className="switch" role="group" aria-label="Data source">
                   <button
                     className={live ? "sel" : ""}
@@ -166,7 +163,6 @@ export function HazardPanel() {
                     Simulated scenario
                   </button>
                 </div>
-              )}
               {!live && (
                 <>
                   <button
@@ -241,7 +237,6 @@ export function HazardPanel() {
               </div>
             )}
           </div>
-        )}
         {!live && (
           <RainStrip
             days={rainStrip(zones, scenario, firstDay, lastDay)}
@@ -317,7 +312,7 @@ export function HazardPanel() {
             </span>
           </div>
         )}
-        {live && isAdmin && (
+        {live && (
           <fieldset className="notices">
             <legend>Dengue feed (simulated)</legend>
             {zones.map((z) => (

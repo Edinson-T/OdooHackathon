@@ -25,7 +25,7 @@ The overview shows three alerts for each zone: heavy rain, high temperature, and
 - **Heavy rain**, more than 25 mm in a day: a warning is shown. On the first day the rain is back under the threshold, the zone's solar systems get an inspection job.
 - **Dengue and mosquito**: a simulated health authority feed answers yes or no for each zone. A yes shows the alert at once and creates no job.
 
-The simulated scenario is the default data source for every account, and any member can run it. An administrator can switch to live weather from Open-Meteo instead. To present the scenario:
+The simulated scenario is the default data source for every account, and any member can run it. Any member can switch to live weather from Open-Meteo instead. To present the scenario:
 
 1. Open the overview. Days 1 to 5 are calm and there are no jobs, so this is the moment to show a member reporting a problem by hand. **Check due inspections** on the jobs page then turns the two seeded inspections that are due into jobs.
 2. Press **Play**, **Next day** or a later day on the strip. Day 6 turns hot and dengue is reported in the river basin. Day 7 adds a storm, so that zone shows all three alerts at once. Day 8 is the first day after the rain.
