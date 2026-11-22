@@ -1,8 +1,9 @@
-import { activeEvents, alertTitle, byUrgency } from "../../domain/warnings";
-import { ArrowRight, Sprout, ClipboardList, CalendarClock, MessageCircle } from "lucide-react";
+import { activeEvents, byUrgency, currentReading, hazardNames, valueText } from "../../domain/warnings";
+import { ArrowRight, Sprout, ClipboardList, CalendarClock, MessageCircle, TriangleAlert } from "lucide-react";
 import { useApp } from "../../app/provider";
 import { Registry } from "../assets/Registry";
 import { HazardPanel, hazardIcons } from "../hazards/HazardPanel";
+import type { HazardEvent } from "../../domain/types";
 import { localDate } from "../../lib/clock";
 import { go, KindIcon, labels, dateText, Band, Sheet } from "../../components/ui";
 
@@ -22,6 +23,10 @@ export function Dashboard() {
   const alerts = activeEvents(s!).sort(byUrgency);
   const needing = s!.assets.filter((a) => a.condition === "needs_attention" || a.condition === "critical");
   const zoneName = (id: string) => s!.zones.find((z) => z.id === id)?.name ?? id;
+  // One line per zone, listing every alert it has, instead of one line per alert.
+  const byZone = new Map<string, HazardEvent[]>();
+  alerts.forEach((e) => byZone.set(e.zoneId, [...(byZone.get(e.zoneId) ?? []), e]));
+  const chipNames = { rainfall: "Rain", heat: "Heat", dengue: "Dengue" } as const;
   const firstName = me?.name.split(" ")[0] ?? "there";
 
   const sentence =
@@ -82,18 +87,38 @@ export function Dashboard() {
           <aside className="card care">
             <h2>Needs care today</h2>
             <ul className="carelist">
-              {alerts.map((e) => {
-                const Icon = hazardIcons[e.type];
+              {[...byZone].map(([zoneId, here]) => {
+                const Icon = here.length === 1 ? hazardIcons[here[0].type] : TriangleAlert;
+                const readings = here
+                  .map((e) => {
+                    const r = currentReading(s!, zoneId, e.type);
+                    return r ? valueText(e.type, r.value) + (e.type === "rainfall" ? " rain" : "") : hazardNames[e.type];
+                  })
+                  .join(" · ");
                 return (
-                  <li key={e.id} className="warn">
+                  <li key={zoneId} className="warn">
                     <span className="careicon"><Icon size={16} /></span>
                     <div>
-                      <b>{alertTitle(e.type)} in {zoneName(e.zoneId)}</b>
-                      <small>{e.reason}</small>
+                      <b>{zoneName(zoneId)}</b>
+                      <span className="carechips">
+                        {here.map((e) => (
+                          <span key={e.id} className={"zone-chip " + e.type} title={e.reason}>
+                            {chipNames[e.type]}
+                          </span>
+                        ))}
+                      </span>
+                      <small>{readings}</small>
                     </div>
                   </li>
                 );
               })}
+              {alerts.length > 0 && (
+                <li className="caremore">
+                  <button className="linkbtn" onClick={() => document.querySelector(".hazards")?.scrollIntoView({ behavior: "smooth" })}>
+                    Why? See Alerts by zone
+                  </button>
+                </li>
+              )}
               {overdue.slice(0, 4).map((a) => (
                 <li key={a.id}>
                   <span className="careicon"><KindIcon kind={a.type} size={16} /></span>
