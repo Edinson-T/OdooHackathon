@@ -5,13 +5,15 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { KindIcon, go } from "../../components/ui";
 import { useApp } from "../../app/provider";
 import type { Asset, HazardType } from "../../domain/types";
+import { addBaseLayers } from "./baseLayers";
 // Short names for the labels on the zones, where room is tight.
 const chipNames: Record<HazardType, string> = {
   rainfall: "Rain",
   heat: "Heat",
   dengue: "Dengue",
 };
-export function AssetMap({ assets }: { assets: Asset[] }) {
+// `focusId` zooms to one asset and highlights its pin, for "Show on map" in the list.
+export function AssetMap({ assets, focusId }: { assets: Asset[]; focusId?: string }) {
   const el = useRef<HTMLDivElement>(null),
     { s } = useApp();
   useEffect(() => {
@@ -24,33 +26,7 @@ export function AssetMap({ assets }: { assets: Asset[] }) {
     const bounds = L.latLngBounds([50.85, 4.33], [50.91, 4.47]);
     map.fitBounds(bounds, { padding: [8, 10] });
     L.control.zoom({ position: "topright" }).addTo(map);
-    const land = L.imageOverlay(
-      "./landscape.png",
-      [
-        [50.82, 4.1],
-        [50.94, 4.7],
-      ],
-      { attribution: "Green Assets · illustrated zone map" },
-    ).addTo(map);
-    const street = L.tileLayer(
-      "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
-      {
-        maxZoom: 19,
-        attribution:
-          '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-      },
-    );
-    street.once("tileerror", () => {
-      map.removeLayer(street);
-      land.addTo(map);
-    });
-    L.control
-      .layers(
-        { "Field map": land, "Street map": street },
-        {},
-        { position: "topright" },
-      )
-      .addTo(map);
+    addBaseLayers(map);
     const active = activeEvents(s);
     s.zones.forEach((z) => {
       const here = active.filter((e) => e.zoneId === z.id).sort(byUrgency);
@@ -64,17 +40,17 @@ export function AssetMap({ assets }: { assets: Asset[] }) {
         ],
         here.length
           ? {
-              color: "#c81e1e",
+              color: "#c0503a",
               weight: 4,
-              fillColor: "#c81e1e",
+              fillColor: "#c0503a",
               fillOpacity: 0.07,
               interactive: false,
             }
           : {
-              color: "#607c56",
+              color: "#527B55",
               weight: 1,
               dashArray: "4 7",
-              fillColor: "#b4cda9",
+              fillColor: "#A8C5A0",
               fillOpacity: 0.08,
               interactive: false,
             },
@@ -108,16 +84,21 @@ export function AssetMap({ assets }: { assets: Asset[] }) {
         title: a.name,
         alt: a.name,
         icon: L.divIcon({
-          className: "pin " + a.type,
-          html: renderToStaticMarkup(<KindIcon kind={a.type} size={15} />),
-          iconSize: [29, 29],
-          iconAnchor: [14, 24],
+          className: "pin " + a.type + " c-" + a.condition,
+          html: renderToStaticMarkup(<KindIcon kind={a.type} size={13} />),
+          iconSize: [26, 26],
+          iconAnchor: [13, 13],
         }),
       }).addTo(map);
       const label = document.createElement("span");
       label.textContent = a.name;
       marker.bindTooltip(label);
       marker.on("click", () => go("/assets/" + a.id));
+      if (a.id === focusId) {
+        map.setView([a.latitude, a.longitude], 13.5);
+        marker.openTooltip();
+        marker.getElement()?.classList.add("focused");
+      }
     });
     const observer = new ResizeObserver(() => map.invalidateSize());
     observer.observe(el.current);
@@ -125,7 +106,7 @@ export function AssetMap({ assets }: { assets: Asset[] }) {
       observer.disconnect();
       map.remove();
     };
-  }, [assets, s]);
+  }, [assets, s, focusId]);
   return (
     <div
       className="leafmap"

@@ -150,8 +150,16 @@ function upgrade(data: unknown) {
         row.source !== undefined,
     );
   const scenario = saved.scenario as Record<string, unknown> | undefined;
+  // The demo accounts keep the names in seed.ts, even in data saved before a rename.
+  const demoNames = new Map(seed().users.map((u) => [u.id, u.name]));
+  const users = Array.isArray(saved.users)
+    ? saved.users.map((u) =>
+        typeof u === "object" && u !== null && demoNames.has(u.id) ? { ...u, name: demoNames.get(u.id) } : u,
+      )
+    : saved.users;
   return {
     ...saved,
+    users,
     readings: current(saved.readings),
     hazardEvents: current(saved.hazardEvents),
     scenario: Array.isArray(scenario?.triggered) ? scenario : undefined,
