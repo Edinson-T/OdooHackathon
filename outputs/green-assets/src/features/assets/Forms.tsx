@@ -9,6 +9,10 @@ import { repository as repo } from "../../services/localRepository";
 import type { Asset, AssetType } from "../../domain/types";
 import { localDate } from "../../lib/clock";
 
+import { riskOf } from "../../domain/risk";
+import { riskConfig } from "../../domain/riskConfig";
+import { RiskBadge } from "../../components/RiskBadge";
+
 /** Step-by-step report, one question at a time. */
 export function Report({ assetId }: { assetId?: string }) {
   const { s, identity, run, busy } = useApp();
@@ -107,17 +111,17 @@ export function Admin({ editId }: { editId?: string }) {
   const { s, identity, run, busy } = useApp();
   const a = s!.assets.find((a) => a.id === editId),
     first = s!.zones[0];
-  const [zone, Z] = useState(a?.zoneId || first.id),
+  const [zone, Z] = useState(a ? a.zoneId ?? "" : first.id),
     [lat, Y] = useState(String(a?.latitude ?? (first.bounds.north + first.bounds.south) / 2)),
     [lng, X] = useState(String(a?.longitude ?? 4.4));
   if (s!.users.find((u) => u.id === identity)?.role !== "admin") return <Empty text="Only administrators can manage assets." hint="Switch to the administrator demo account to try it." />;
-  const bounds = s!.zones.find((z) => z.id === zone)!.bounds;
+  const bounds = s!.zones.find((z) => z.id === zone)?.bounds;
   async function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const f = new FormData(e.currentTarget);
     const patch = {
       name: String(f.get("name")),
-      zoneId: zone,
+      zoneId: zone || undefined,
       latitude: Number(lat),
       longitude: Number(lng),
       inspectionIntervalDays: Number(f.get("interval") ?? a?.inspectionIntervalDays),
@@ -176,6 +180,7 @@ export function Admin({ editId }: { editId?: string }) {
                   X(((z.bounds.west + z.bounds.east) / 2).toFixed(4));
                 }}
               >
+                {a && !a.zoneId && <option value="" disabled>Saved location (no zone)</option>}
                 {s!.zones.map((z) => (
                   <option key={z.id} value={z.id}>{z.name}</option>
                 ))}
@@ -203,8 +208,8 @@ export function Admin({ editId }: { editId?: string }) {
         </div>
         <section className="card pinpanel">
           <h3><span className="step">3</span> Place it on the map</h3>
-          <p className="muted">Click inside the outlined zone to drop the pin where the asset is.</p>
-          <PinPicker key={zone} bounds={bounds} latitude={Number(lat)} longitude={Number(lng)} onPick={(lat, lng) => { Y(String(lat)); X(String(lng)); }} />
+          <p className="muted">{bounds ? "Click inside the outlined zone to drop the pin where the asset is." : "Select a zone to move this pin."}</p>
+          {bounds && <PinPicker key={zone} bounds={bounds} latitude={Number(lat)} longitude={Number(lng)} onPick={(lat, lng) => { Y(String(lat)); X(String(lng)); }} />}
           <p className="coords">{Number(lat).toFixed(4)}° N, {Number(lng).toFixed(4)}° E</p>
         </section>
       </form>
@@ -217,6 +222,7 @@ export function Details({ id }: { id: string }) {
   const { s, identity } = useApp();
   const a = s!.assets.find((a) => a.id === id);
   if (!a) return <Empty text="We couldn't find that asset." hint="It may have been removed." />;
+  const risk = riskOf(s!, a, localDate());
   const complaints = s!.complaints.filter((c) => c.assetId === id),
     jobs = s!.jobs.filter((j) => j.assetId === id).reverse();
   const late = a.nextInspectionDue < localDate();
@@ -307,6 +313,51 @@ export function Details({ id }: { id: string }) {
           </ol>
           {!jobs.length && <Empty text="No inspections yet." />}
         </section>
+      <section className="card">
+        <div className="toolbar">
+          <h2>Inspection priority</h2>
+          <RiskBadge risk={risk} />
+        </div>
+        <p className="muted">
+          A way to decide which asset to inspect first. It is not a forecast of
+          disease. The numbers are placeholders chosen by the team and have not
+          been validated.
+        </p>
+        <div className="tablewrap">
+          <table className="risktable">
+            <thead>
+              <tr>
+                <th>Part</th>
+                <th>Points</th>
+                <th>Why</th>
+              </tr>
+            </thead>
+            <tbody>
+              {risk.parts.map((p) => (
+                <tr key={p.key}>
+                  <td>{p.name}</td>
+                  <td>
+                    {p.points} of {p.max}
+                  </td>
+                  <td>{p.reason}</td>
+                </tr>
+              ))}
+              <tr>
+                <td>
+                  <b>Total</b>
+                </td>
+                <td>
+                  <b>{risk.score} of 100</b>
+                </td>
+                <td>
+                  Inspect first from {riskConfig.levels.inspectFirst}, this week from{" "}
+                  {riskConfig.levels.thisWeek}, routine below that.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
       </div>
       </Sheet>
     </>

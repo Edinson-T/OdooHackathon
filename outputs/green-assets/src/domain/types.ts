@@ -22,7 +22,7 @@ export interface Asset {
   type: AssetType;
   latitude: number;
   longitude: number;
-  zoneId: Id;
+  zoneId?: Id; // Earlier versions allowed assets outside the monitored zones.
   condition: Condition;
   inspectionIntervalDays: number;
   nextInspectionDue: LocalDate;
@@ -46,6 +46,7 @@ export type HazardLevel = "watch" | "warning";
 export type ReadingSource = "live" | "sensor" | "manual" | "simulated";
 
 export type Trigger =
+  | { kind: "weather"; key: string } // Persisted inspections from the earlier demo.
   | { kind: "complaint"; complaintId: Id; key: string }
   | { kind: "due"; dueDate: LocalDate; key: string }
   | { kind: "hazard"; hazardEventId: Id; key: string; level?: HazardLevel };

@@ -4,6 +4,8 @@ import { repository as repo } from "../../services/localRepository";
 import { labels, KindIcon, Badge, Empty, go, dateText, dateParts, Band, Sheet, Dashes, reasons } from "../../components/ui";
 import type { InspectionJob } from "../../domain/types";
 import { localDate } from "../../lib/clock";
+import { riskOf } from "../../domain/risk";
+import { RiskBadge } from "../../components/RiskBadge";
 import type { CompletionInput } from "../../services/repository";
 
 export function Jobs({ mine = false }: { mine?: boolean }) {
@@ -11,6 +13,9 @@ export function Jobs({ mine = false }: { mine?: boolean }) {
   const [type, T] = useState(""),
     [reason, R] = useState("");
   const occupied = s!.jobs.some((j) => j.status === "assigned" && j.assigneeId === identity);
+  const today = localDate();
+  const risks = new Map(s!.assets.map((a) => [a.id, riskOf(s!, a, today)]));
+  const scoreOf = (assetId: string) => risks.get(assetId)?.score ?? 0;
   const jobs = s!.jobs
     .filter(
       (j) =>
@@ -18,9 +23,8 @@ export function Jobs({ mine = false }: { mine?: boolean }) {
         (!type || s!.assets.find((a) => a.id === j.assetId)?.type === type) &&
         (!reason || j.triggers.some((t) => t.kind === reason)),
     )
-    .sort((a, b) => Number(a.status === "completed") - Number(b.status === "completed") || a.createdAt.localeCompare(b.createdAt));
+    .sort((a, b) => Number(a.status === "completed") - Number(b.status === "completed") || scoreOf(b.assetId) - scoreOf(a.assetId) || a.createdAt.localeCompare(b.createdAt));
   const complaints = s!.complaints.filter((c) => c.reporterId === identity).reverse();
-  const today = localDate();
   const upcoming = s!.assets.filter((a) => !type || type === a.type).slice().sort((a, b) => a.nextInspectionDue.localeCompare(b.nextInspectionDue));
   const done = s!.jobs.filter((j) => j.assigneeId === identity && j.status === "completed").length;
   return (
@@ -34,7 +38,7 @@ export function Jobs({ mine = false }: { mine?: boolean }) {
             ? done
               ? `You've completed ${done} inspection${done === 1 ? "" : "s"}. Thank you for looking after the neighbourhood.`
               : "Inspections you claim and problems you report will show up here."
-            : "One visit at a time: finish your current inspection before claiming the next. Scheduled visits open 24 hours before their date."
+            : "One visit at a time: finish your current inspection before claiming the next. Jobs are listed by priority score, highest first. Scheduled visits open 24 hours before their date."
         }
       />
       <Sheet>
@@ -72,6 +76,7 @@ export function Jobs({ mine = false }: { mine?: boolean }) {
                       <KindIcon kind={a.type} size={15} /> {a.name}
                     </a>
                     <div className="woreasons">
+                      {j.status !== "completed" && <RiskBadge risk={risks.get(a.id)!} />}
                       <span className="wozone">{s!.zones.find((z) => z.id === a.zoneId)?.name}</span>
                       {reasons(s!, j.triggers).map((r) => (
                         <span key={r} className={"reason r-" + (j.triggers.find((t) => labels[t.kind] === r)?.kind ?? "hazard")}>{r}</span>

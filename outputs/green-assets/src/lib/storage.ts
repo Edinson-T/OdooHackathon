@@ -1,9 +1,9 @@
 import { z } from "zod";
-import { seed } from "../data/seed";
-import { newScenario } from "../domain/scenario";
+import { seed } from "../data/seed.ts";
+import { newScenario } from "../domain/scenario.ts";
 import type { Snapshot } from "../domain/types";
 import type { ErrorCode } from "../services/repository";
-import { realDate } from "./clock";
+import { realDate } from "./clock.ts";
 export class Problem extends Error {
   code: ErrorCode;
   constructor(code: ErrorCode, message: string) {
@@ -23,6 +23,7 @@ const id = z.string().min(1),
   source = z.enum(["live", "sensor", "manual", "simulated"]),
   whole = z.number().int();
 const trigger = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("weather"), key: id }),
   z.object({ kind: z.literal("due"), key: id, dueDate: date }),
   z.object({
     kind: z.literal("hazard"),
@@ -51,7 +52,7 @@ const format = z.object({
       type: z.enum(["farm", "pond", "solar_system"]),
       latitude: lat,
       longitude: lng,
-      zoneId: id,
+      zoneId: id.optional(),
       condition: z.union([condition, z.literal("unknown")]),
       inspectionIntervalDays: z.number().int().min(1).max(365),
       nextInspectionDue: date,
@@ -75,6 +76,9 @@ const format = z.object({
       assetId: id,
       status: z.enum(["available", "assigned", "completed"]),
       triggers: z.array(trigger).min(1),
+      // Earlier demos attached the weather evidence directly to the inspection.
+      weather: z.record(z.unknown()).optional(),
+      dismissedAt: time.optional(),
       assigneeId: id.nullable(),
       createdAt: time,
       claimedAt: time.nullable(),
@@ -192,19 +196,31 @@ export function load(): Snapshot {
   } catch {
     throw new Problem(
       "DATA_INVALID",
-      "Saved data is unreadable. Use Reset demo to start again.",
+      "The saved workspace contains unreadable JSON. Your browser still holds the original.",
     );
   }
   if (data?.schemaVersion !== undefined && data.schemaVersion !== 1)
     throw new Problem(
       "DATA_VERSION_UNSUPPORTED",
-      "Unsupported saved format. Reset demo to start again.",
+      "This version cannot open the saved workspace format. Your browser still holds the original.",
     );
   const parsed = format.safeParse(upgrade(data));
   if (!parsed.success)
     throw new Problem(
       "DATA_INVALID",
-      "Saved records are invalid. Reset demo to start again.",
+      `Unable to read saved field ${parsed.error.issues[0].path.join(".")}. Your browser still holds the original.`,
     );
+  // Registration saves immediately after loading. Keep the exact original
+  // before the older scenario and retired sensor records can be replaced.
+  if (!Array.isArray(data.scenario?.triggered) ||
+      parsed.data.readings.length !== data.readings?.length ||
+      parsed.data.hazardEvents.length !== data.hazardEvents?.length) {
+    const backupKey = key + ":before-hazard-upgrade";
+    try {
+      if (localStorage.getItem(backupKey) === null) localStorage.setItem(backupKey, raw);
+    } catch {
+      throw new Problem("STORAGE_UNAVAILABLE", "Could not back up your saved workspace. Free some browser storage and retry.");
+    }
+  }
   return parsed.data;
 }

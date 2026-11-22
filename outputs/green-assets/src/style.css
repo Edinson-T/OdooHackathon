@@ -755,3 +755,20 @@ button.rainday:hover { background: var(--green-soft); }
   .tile3 { padding: 7px; }
   .rainbars { gap: 2px; }
 }
+
+/* Inspection priority score. */
+.inspect_first {
+  background: #f7dcd3;
+  color: #8f3a22;
+}
+.this_week {
+  background: #fbefd5;
+  color: #7a5510;
+}
+.routine {
+  background: #e6f2e4;
+  color: #3e764b;
+}
+.risktable td {
+  white-space: normal;
+}

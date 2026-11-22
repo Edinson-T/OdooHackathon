@@ -1,7 +1,7 @@
 import type { Snapshot, AssetType, Condition } from "../domain/types";
-import { localDate } from "../lib/clock";
-import { checklist } from "../domain/checklists";
-import { newScenario } from "../domain/scenario";
+import { localDate } from "../lib/clock.ts";
+import { checklist } from "../domain/checklists.ts";
+import { newScenario } from "../domain/scenario.ts";
 export function seed(): Snapshot {
   const zones = ["North meadow", "River basin", "South ridge"].map(
     (name, i) => ({
