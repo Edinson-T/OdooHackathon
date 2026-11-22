@@ -15,6 +15,7 @@ export const labels: Record<string, string> = {
   due: "Due inspection",
   complaint: "Complaint",
   hazard: "Hazard",
+  weather: "Weather",
   open: "Open",
   reviewed_action_needed: "Reviewed · action needed",
   resolved: "Resolved",

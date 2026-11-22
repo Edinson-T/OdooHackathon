@@ -79,20 +79,20 @@ export function Admin({ editId }: { editId?: string }) {
   const { s, identity, run, busy } = useApp();
   const a = s!.assets.find((a) => a.id === editId),
     first = s!.zones[0];
-  const [zone, Z] = useState(a?.zoneId || first.id),
+  const [zone, Z] = useState(a ? a.zoneId ?? "" : first.id),
     [lat, Y] = useState(
       String(a?.latitude ?? (first.bounds.north + first.bounds.south) / 2),
     ),
     [lng, X] = useState(String(a?.longitude ?? 4.4));
   if (s!.users.find((u) => u.id === identity)?.role !== "admin")
     return <Empty text="An administrator account is required to manage assets." />;
-  const bounds = s!.zones.find((z) => z.id === zone)!.bounds;
+  const bounds = s!.zones.find((z) => z.id === zone)?.bounds;
   async function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const f = new FormData(e.currentTarget);
     const patch = {
       name: String(f.get("name")),
-      zoneId: zone,
+      zoneId: zone || undefined,
       latitude: Number(lat),
       longitude: Number(lng),
       inspectionIntervalDays: Number(
@@ -165,6 +165,7 @@ export function Admin({ editId }: { editId?: string }) {
                 X(((z.bounds.west + z.bounds.east) / 2).toFixed(4));
               }}
             >
+              {a && !a.zoneId && <option value="" disabled>Saved location (no zone)</option>}
               {s!.zones.map((z) => (
                 <option key={z.id} value={z.id}>
                   {z.name}
@@ -173,7 +174,7 @@ export function Admin({ editId }: { editId?: string }) {
             </select>
           </label>
         </div>
-        <PinPicker key={zone} bounds={bounds} latitude={Number(lat)} longitude={Number(lng)} onPick={(lat,lng) => { Y(String(lat)); X(String(lng)); }} />
+        {bounds && <PinPicker key={zone} bounds={bounds} latitude={Number(lat)} longitude={Number(lng)} onPick={(lat,lng) => { Y(String(lat)); X(String(lng)); }} />}
         <div className="twocol">
           <label>
             Inspection interval (days)

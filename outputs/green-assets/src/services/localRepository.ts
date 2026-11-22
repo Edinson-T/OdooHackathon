@@ -66,8 +66,11 @@ function edit<T>(f: (s: Snapshot) => T) {
   });
   return navigator.locks.request("green-assets:write", transaction) as Promise<Result<T>>;
 }
-function validate(s: Snapshot, a: AssetInput) {
-  const z = byId(s.zones, a.zoneId).bounds;
+function validate(s: Snapshot, a: AssetInput, existing?: Asset) {
+  const keepLocation = existing && !existing.zoneId && !a.zoneId &&
+    a.latitude === existing.latitude && a.longitude === existing.longitude;
+  check(keepLocation || a.zoneId, "Choose a zone for the asset.");
+  const z = a.zoneId ? byId(s.zones, a.zoneId).bounds : undefined;
   check(
     typeof a.name === "string" &&
       a.name.trim().length > 0 &&
@@ -86,12 +89,12 @@ function validate(s: Snapshot, a: AssetInput) {
     "Interval must be 1–365 days.",
   );
   check(
-    Number.isFinite(a.latitude) &&
+    keepLocation || (z && Number.isFinite(a.latitude) &&
       Number.isFinite(a.longitude) &&
       a.latitude >= z.south &&
       a.latitude <= z.north &&
       a.longitude >= z.west &&
-      a.longitude <= z.east,
+      a.longitude <= z.east),
     "Coordinates must be inside the selected zone.",
   );
 }
@@ -148,10 +151,9 @@ function endWarnings(s: Snapshot) {
 // deleted, claimed and completed ones included, so each run starts clean.
 // What members reported by hand stays, and so do scheduled inspections.
 function withdrawSimulated(s: Snapshot) {
-  // An alert that no longer exists came from an earlier scenario, so its
-  // work goes too.
+  // A missing alert can belong to a retired sensor type. Keep its job history.
   const simulatedEvent = (id: string) =>
-    s.hazardEvents.find((e) => e.id === id)?.simulated !== false;
+    s.hazardEvents.find((e) => e.id === id)?.simulated === true;
   for (const j of s.jobs) {
     const kept = j.triggers.filter(
       (t) => t.kind !== "hazard" || !simulatedEvent(t.hazardEventId),
@@ -234,7 +236,7 @@ export const repository = {
       );
       const a = byId(s.assets, id),
         v = { ...a, ...patch };
-      validate(s, v);
+      validate(s, v, a);
       if (
         v.nextInspectionDue !== a.nextInspectionDue ||
         v.inspectionIntervalDays !== a.inspectionIntervalDays
